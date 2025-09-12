@@ -6,6 +6,7 @@ namespace MottuApi.Enums
     /// Enum para representar o modelo da moto.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
+    [SwaggerSchema(Description = "Modelos de moto disponíveis no sistema")]
     public enum ModeloMoto
     {
         /// <summary>

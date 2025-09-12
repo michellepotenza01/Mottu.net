@@ -1,37 +1,37 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Models
 {
     /// <summary>
-    /// Representa um cliente no sistema.
+    /// Representa um cliente no sistema de aluguel de motos.
     /// </summary>
+    [Table("Clientes")]
     public class Cliente
     {
         [Key]
-        [Required(ErrorMessage = "O usuário do cliente é obrigatório.")]
-        [StringLength(450)]
-        [SwaggerSchema(Description = "Nome de usuário único para o cliente.")]
-        public string UsuarioCliente { get; set; }
+        [Required(ErrorMessage = "O nome de usuário do cliente é obrigatório.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "O usuário deve ter entre 3 e 50 caracteres.")]
+        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "O usuário deve conter apenas letras, números e underscore.")]
+        [SwaggerSchema("Nome de usuário único do cliente", Example = "joao_silva")]
+        public string UsuarioCliente { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "O nome do cliente é obrigatório.")]
-        [StringLength(2000)]
-        [SwaggerSchema(Description = "Nome completo do cliente.")]
-        public string Nome { get; set; }
+        [Required(ErrorMessage = "O nome completo do cliente é obrigatório.")]
+        [StringLength(100, MinimumLength = 5, ErrorMessage = "O nome deve ter entre 5 e 100 caracteres.")]
+        [SwaggerSchema("Nome completo do cliente", Example = "Michelle Marques")]
+        public string Nome { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "A senha do cliente é obrigatória.")]
-        [StringLength(2000)]
-        [SwaggerSchema(Description = "Senha do cliente.")]
-        public string Senha { get; set; }
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
+        [SwaggerSchema("Senha do cliente (mínimo 6 caracteres)", Example = "senha123")]
+        public string Senha { get; set; } = string.Empty;
 
-        [SwaggerSchema(Description = "Placa da moto associada ao cliente.")]
+        [SwaggerSchema("Placa da moto associada ao cliente (opcional)", Example = "ABC-1234")]
+        [RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "Formato de placa inválido. Use: XXX-0000")]
         public string? MotoPlaca { get; set; }
 
-        public Cliente()
-        {
-            UsuarioCliente = string.Empty;
-            Nome = string.Empty;
-            Senha = string.Empty;
-        }
+        [SwaggerSchema("Moto associada ao cliente")]
+        public Moto? Moto { get; set; }
     }
 }

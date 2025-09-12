@@ -6,6 +6,7 @@ namespace MottuApi.Enums
     /// Enum para representar o setor onde a moto está alocada.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
+    [SwaggerSchema(Description = "Setores de moto disponíveis no sistema")]
     public enum SetorMoto
     {
         /// <summary>
