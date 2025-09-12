@@ -1,12 +1,10 @@
-using MottuApi.Data;
-using MottuApi.Models;
+ï»¿using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Repositories;
+using MottuApi.Enums;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Services
 {
@@ -23,55 +21,40 @@ namespace MottuApi.Services
             _patioRepository = patioRepository;
         }
 
-        /// <summary>
-        /// Obtém todas as motos cadastradas.
-        /// </summary>
-        /// <returns>Lista de motos.</returns>
-        [SwaggerResponse(200, "Motos encontradas", typeof(IEnumerable<Moto>))]
-        public async Task<IEnumerable<Moto>> GetMotosAsync(string status = null, string setor = null)
+        public async Task<ServiceResponse<IEnumerable<Moto>>> GetMotosAsync(StatusMoto? status = null, SetorMoto? setor = null)
         {
-            var motos = _motoRepository.GetAllAsync();
+            var motos = await _motoRepository.GetAllAsync();
 
-            if (!string.IsNullOrEmpty(status))
-                motos = motos.Where(m => m.Status == status);
+            if (status.HasValue)
+                motos = motos.Where(m => m.Status == status.Value);
 
-            if (!string.IsNullOrEmpty(setor))
-                motos = motos.Where(m => m.Setor == setor);
+            if (setor.HasValue)
+                motos = motos.Where(m => m.Setor == setor.Value);
 
-            return await motos.ToListAsync();
+            return new ServiceResponse<IEnumerable<Moto>>(motos);
         }
 
-        /// <summary>
-        /// Obtém uma moto específica.
-        /// </summary>
-        /// <param name="placa">Placa da moto.</param>
-        /// <returns>Moto encontrada.</returns>
-        [SwaggerResponse(200, "Moto encontrada", typeof(Moto))]
-        [SwaggerResponse(404, "Moto não encontrada")]
-        public async Task<Moto> GetMotoAsync(string placa)
+        public async Task<ServiceResponse<Moto>> GetMotoAsync(string placa)
         {
-            return await _motoRepository.GetByIdAsync(placa);
+            var moto = await _motoRepository.GetByIdAsync(placa);
+            if (moto == null)
+                return new ServiceResponse<Moto> { Success = false, Message = "Moto nÃ£o encontrada" };
+
+            return new ServiceResponse<Moto>(moto);
         }
 
-        /// <summary>
-        /// Cria uma nova moto.
-        /// </summary>
-        /// <param name="motoDto">Informações da moto.</param>
-        /// <returns>Mensagem de sucesso ou erro.</returns>
-        [SwaggerResponse(201, "Moto criada com sucesso")]
-        [SwaggerResponse(400, "Erro ao criar moto")]
-        public async Task<string> AddMotoAsync(MotoDto motoDto)
+        public async Task<ServiceResponse<Moto>> CreateMotoAsync(MotoDto motoDto)
         {
             var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
             if (funcionario == null)
-                return "Funcionário não encontrado.";
+                return new ServiceResponse<Moto> { Success = false, Message = "FuncionÃ¡rio nÃ£o encontrado" };
 
             var patio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
             if (patio == null)
-                return "Pátio não encontrado.";
+                return new ServiceResponse<Moto> { Success = false, Message = "PÃ¡tio nÃ£o encontrado" };
 
-            if (patio.VagasOcupadas >= patio.VagasTotais)
-                return "Não há vagas disponíveis no pátio.";
+            if (!patio.TemVagasDisponiveis())
+                return new ServiceResponse<Moto> { Success = false, Message = "NÃ£o hÃ¡ vagas disponÃ­veis no pÃ¡tio" };
 
             var moto = new Moto
             {
@@ -85,67 +68,101 @@ namespace MottuApi.Services
                 Patio = patio
             };
 
-            _motoRepository.AddAsync(moto);
-
-            if (moto.Status == "Disponível" || moto.Status == "Manutenção")
+            // LÃ“GICA DE VAGAS âœ…
+            if (moto.Status == StatusMoto.DisponÃ­vel || moto.Status == StatusMoto.ManutenÃ§Ã£o)
+            {
                 patio.VagasOcupadas++;
+                await _patioRepository.UpdateAsync(patio);
+            }
 
-            await _patioRepository.SaveChangesAsync();
-            return "Moto criada com sucesso!";
+            await _motoRepository.AddAsync(moto);
+            return new ServiceResponse<Moto>(moto, "Moto criada com sucesso!");
         }
 
-        /// <summary>
-        /// Atualiza uma moto existente.
-        /// </summary>
-        /// <param name="placa">Placa da moto.</param>
-        /// <param name="motoDto">Novas informações da moto.</param>
-        /// <returns>Mensagem de sucesso ou erro.</returns>
-        [SwaggerResponse(200, "Moto atualizada com sucesso")]
-        [SwaggerResponse(404, "Moto não encontrada")]
-        public async Task<string> UpdateMotoAsync(string placa, MotoDto motoDto)
+        public async Task<ServiceResponse<Moto>> UpdateMotoAsync(string placa, MotoDto motoDto)
         {
             var motoExistente = await _motoRepository.GetByIdAsync(placa);
             if (motoExistente == null)
-                return "Moto não encontrada.";
+                return new ServiceResponse<Moto> { Success = false, Message = "Moto nÃ£o encontrada" };
 
-            var patio = motoExistente.Patio;
-
-            if (motoDto.Status != motoExistente.Status)
-            {
-                if (motoDto.Status == "Alugada" && motoExistente.Status == "Disponível")
-                    patio.VagasOcupadas--;
-                else if (motoDto.Status == "Disponível" || motoDto.Status == "Manutenção" && motoExistente.Status == "Alugada")
-                    patio.VagasOcupadas++;
-            }
+            var patioAntigo = motoExistente.Patio;
+            var statusAntigo = motoExistente.Status;
 
             motoExistente.Modelo = motoDto.Modelo;
             motoExistente.Status = motoDto.Status;
             motoExistente.Setor = motoDto.Setor;
 
-            await _motoRepository.SaveChangesAsync();
-            return "Moto atualizada com sucesso!";
+            // LÃ“GICA DE VAGAS âœ…
+            if (statusAntigo != motoDto.Status)
+            {
+                if ((statusAntigo == StatusMoto.DisponÃ­vel || statusAntigo == StatusMoto.ManutenÃ§Ã£o) &&
+                    motoDto.Status == StatusMoto.Alugada)
+                {
+                    patioAntigo.VagasOcupadas--;
+                    await _patioRepository.UpdateAsync(patioAntigo);
+                }
+                else if (statusAntigo == StatusMoto.Alugada &&
+                         (motoDto.Status == StatusMoto.DisponÃ­vel || motoDto.Status == StatusMoto.ManutenÃ§Ã£o))
+                {
+                    patioAntigo.VagasOcupadas++;
+                    await _patioRepository.UpdateAsync(patioAntigo);
+                }
+            }
+
+            await _motoRepository.UpdateAsync(motoExistente);
+            return new ServiceResponse<Moto>(motoExistente, "Moto atualizada com sucesso!");
         }
 
-        /// <summary>
-        /// Exclui uma moto do sistema.
-        /// </summary>
-        /// <param name="placa">Placa da moto.</param>
-        /// <returns>Mensagem de sucesso ou erro.</returns>
-        [SwaggerResponse(200, "Moto removida com sucesso")]
-        [SwaggerResponse(404, "Moto não encontrada")]
-        public async Task<string> DeleteMotoAsync(string placa)
+        public async Task<ServiceResponse<bool>> DeleteMotoAsync(string placa)
         {
             var moto = await _motoRepository.GetByIdAsync(placa);
             if (moto == null)
-                return "Moto não encontrada.";
+                return new ServiceResponse<bool> { Success = false, Message = "Moto nÃ£o encontrada" };
 
             var patio = moto.Patio;
-            if (patio != null && (moto.Status == "Disponível" || moto.Status == "Manutenção"))
+
+            if (moto.Status == StatusMoto.DisponÃ­vel || moto.Status == StatusMoto.ManutenÃ§Ã£o)
+            {
                 patio.VagasOcupadas--;
+                await _patioRepository.UpdateAsync(patio);
+            }
 
             await _motoRepository.DeleteAsync(moto);
-            return "Moto removida com sucesso!";
+            return new ServiceResponse<bool>(true, "Moto removida com sucesso!");
+        }
+
+        // MÃ©todos de paginaÃ§Ã£o
+        public async Task<ServiceResponse<IEnumerable<Moto>>> GetMotosPaginatedAsync(int page, int pageSize, StatusMoto? status = null, SetorMoto? setor = null)
+        {
+            var motos = await _motoRepository.GetAllAsync();
+
+            if (status.HasValue)
+                motos = motos.Where(m => m.Status == status.Value);
+
+            if (setor.HasValue)
+                motos = motos.Where(m => m.Setor == setor.Value);
+
+            var paginated = motos.Skip((page - 1) * pageSize).Take(pageSize);
+            return new ServiceResponse<IEnumerable<Moto>>(paginated);
+        }
+
+        public async Task<ServiceResponse<int>> GetTotalMotosCountAsync(StatusMoto? status = null, SetorMoto? setor = null)
+        {
+            var motos = await _motoRepository.GetAllAsync();
+
+            if (status.HasValue)
+                motos = motos.Where(m => m.Status == status.Value);
+
+            if (setor.HasValue)
+                motos = motos.Where(m => m.Setor == setor.Value);
+
+            return new ServiceResponse<int>(motos.Count());
+        }
+
+        public async Task<ServiceResponse<IEnumerable<Moto>>> GetMotosByPatioAsync(string nomePatio)
+        {
+            var motos = await _motoRepository.GetByPatioAsync(nomePatio);
+            return new ServiceResponse<IEnumerable<Moto>>(motos);
         }
     }
 }
-

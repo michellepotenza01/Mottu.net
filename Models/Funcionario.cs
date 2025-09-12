@@ -4,9 +4,6 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Models
 {
-    /// <summary>
-    /// Representa um funcionário que trabalha em um pátio do sistema.
-    /// </summary>
     [Table("Funcionarios")]
     public class Funcionario
     {
@@ -32,9 +29,10 @@ namespace MottuApi.Models
         [SwaggerSchema("Nome do pátio onde o funcionário trabalha", Example = "Pátio Osasco")]
         public string NomePatio { get; set; } = string.Empty;
 
-        // Navigation property
         [ForeignKey("NomePatio")]
         [SwaggerSchema("Pátio onde o funcionário está alocado")]
-        public Patio Patio { get; set; } = new Patio();
+        public virtual Patio Patio { get; set; } = null!;
+
+        public virtual ICollection<Moto>? Motos { get; set; }
     }
 }

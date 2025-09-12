@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace MottuApi.Repositories
 {
     /// <summary>
-    /// Implementação do repositório para operações com funcionários.
+    /// repositório para operações com funcionários.
     /// </summary>
     public class FuncionarioRepository : IFuncionarioRepository
     {
@@ -20,12 +20,15 @@ namespace MottuApi.Repositories
 
         public async Task<IEnumerable<Funcionario>> GetAllAsync()
         {
-            return await _context.Funcionarios.ToListAsync();
+            return await _context.Funcionarios
+                .Include(f => f.Patio)
+                .ToListAsync();
         }
 
         public async Task<Funcionario> GetByIdAsync(string usuarioFuncionario)
         {
             return await _context.Funcionarios
+                .Include(f => f.Patio)
                 .FirstOrDefaultAsync(f => f.UsuarioFuncionario == usuarioFuncionario);
         }
 
@@ -45,6 +48,11 @@ namespace MottuApi.Repositories
         {
             _context.Funcionarios.Remove(funcionario);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> ExistsAsync(string usuarioFuncionario)
+        {
+            return await _context.Funcionarios.AnyAsync(f => f.UsuarioFuncionario == usuarioFuncionario);
         }
     }
 }

@@ -14,5 +14,6 @@ namespace MottuApi.Repositories
         Task AddAsync(Patio patio);
         Task UpdateAsync(Patio patio);
         Task DeleteAsync(Patio patio);
+        Task<bool> ExistsAsync(string nomePatio);
     }
 }

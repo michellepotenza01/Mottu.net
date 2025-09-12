@@ -9,6 +9,7 @@ namespace MottuApi.Repositories
     /// <summary>
     /// Implementação do repositório para operações com pátios.
     /// </summary>
+  {
     public class PatioRepository : IPatioRepository
     {
         private readonly MottuDbContext _context;
@@ -45,6 +46,11 @@ namespace MottuApi.Repositories
         {
             _context.Patios.Remove(patio);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> ExistsAsync(string nomePatio)
+        {
+            return await _context.Patios.AnyAsync(p => p.NomePatio == nomePatio);
         }
     }
 }

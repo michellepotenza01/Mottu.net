@@ -4,9 +4,6 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Models
 {
-    /// <summary>
-    /// Representa um pátio onde as motos são alocadas e gerenciadas.
-    /// </summary>
     [Table("Patios")]
     public class Patio
     {
@@ -33,16 +30,9 @@ namespace MottuApi.Models
         public int VagasOcupadas { get; set; }
 
         [SwaggerSchema("Número de vagas disponíveis (calculado automaticamente)")]
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
         public int VagasDisponiveis => VagasTotais - VagasOcupadas;
 
-
-
-        [SwaggerSchema("Lista de motos alocadas neste pátio")]
-        public List<Moto> Motos { get; set; } = new List<Moto>();
-
-
-        public bool TemVagasDisponiveis() => VagasDisponiveis > 0;
-        public bool PodeAlocarMoto() => TemVagasDisponiveis() && VagasDisponiveis >= 1;
+        public virtual ICollection<Moto>? Motos { get; set; }
+        public virtual ICollection<Funcionario>? Funcionarios { get; set; }
     }
 }

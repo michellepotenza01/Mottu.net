@@ -4,9 +4,6 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Models
 {
-    /// <summary>
-    /// Representa um cliente no sistema de aluguel de motos.
-    /// </summary>
     [Table("Clientes")]
     public class Cliente
     {
@@ -31,7 +28,8 @@ namespace MottuApi.Models
         [RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "Formato de placa inválido. Use: XXX-0000")]
         public string? MotoPlaca { get; set; }
 
+        [ForeignKey("MotoPlaca")]
         [SwaggerSchema("Moto associada ao cliente")]
-        public Moto? Moto { get; set; }
+        public virtual Moto? Moto { get; set; }
     }
 }

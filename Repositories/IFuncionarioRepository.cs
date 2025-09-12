@@ -14,5 +14,6 @@ namespace MottuApi.Repositories
         Task AddAsync(Funcionario funcionario);
         Task UpdateAsync(Funcionario funcionario);
         Task DeleteAsync(Funcionario funcionario);
+        Task<bool> ExistsAsync(string usuarioFuncionario);
     }
 }

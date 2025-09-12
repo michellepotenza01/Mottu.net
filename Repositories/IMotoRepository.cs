@@ -14,6 +14,7 @@ namespace MottuApi.Repositories
         Task AddAsync(Moto moto);
         Task UpdateAsync(Moto moto);
         Task DeleteAsync(Moto moto);
+        Task<bool> ExistsAsync(string placa);
         Task<IEnumerable<Moto>> GetByPatioAsync(string nomePatio);
     }
 }

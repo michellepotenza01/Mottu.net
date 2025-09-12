@@ -3,41 +3,27 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.DTOs
 {
-    /// <summary>
-    /// DTO para representar um funcionário.
-    /// </summary>
     public class FuncionarioDto
     {
-        /// <summary>
-        /// Nome de usuário único para o funcionário.
-        /// </summary>
-        [Required(ErrorMessage = "O usuário do funcionário é obrigatório.")]
-        [StringLength(450)]
-        [SwaggerSchema(Description = "Nome de usuário único para o funcionário.")]
-        public string UsuarioFuncionario { get; set; }
+        [Required(ErrorMessage = "O nome de usuário do funcionário é obrigatório.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "O usuário deve ter entre 3 e 50 caracteres.")]
+        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "O usuário deve conter apenas letras, números e underscore.")]
+        [SwaggerSchema(Description = "Nome de usuário único do funcionário", Example = "MichellePtz")]
+        public string UsuarioFuncionario { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Nome completo do funcionário.
-        /// </summary>
-        [Required(ErrorMessage = "O nome do funcionário é obrigatório.")]
-        [StringLength(2000)]
-        [SwaggerSchema(Description = "Nome completo do funcionário.")]
-        public string Nome { get; set; }
+        [Required(ErrorMessage = "O nome completo do funcionário é obrigatório.")]
+        [StringLength(100, MinimumLength = 5, ErrorMessage = "O nome deve ter entre 5 e 100 caracteres.")]
+        [SwaggerSchema(Description = "Nome completo do funcionário", Example = "Michelle Potenza")]
+        public string Nome { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Senha do funcionário.
-        /// </summary>
         [Required(ErrorMessage = "A senha do funcionário é obrigatória.")]
-        [StringLength(2000)]
-        [SwaggerSchema(Description = "Senha do funcionário.")]
-        public string Senha { get; set; }
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
+        [SwaggerSchema(Description = "Senha do funcionário", Example = "func123")]
+        public string Senha { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Nome do pátio onde o funcionário trabalha.
-        /// </summary>
-        [Required(ErrorMessage = "O nome do pátio é obrigatório.")]
-        [StringLength(2000)]
-        [SwaggerSchema(Description = "Nome do pátio onde o funcionário trabalha.")]
-        public string NomePatio { get; set; }
+        [Required(ErrorMessage = "O pátio de trabalho é obrigatório.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "O nome do pátio deve ter entre 3 e 50 caracteres.")]
+        [SwaggerSchema(Description = "Nome do pátio onde o funcionário trabalha", Example = "Pátio Osasco")]
+        public string NomePatio { get; set; } = string.Empty;
     }
 }

@@ -21,12 +21,17 @@ namespace MottuApi.Repositories
 
         public async Task<IEnumerable<Moto>> GetAllAsync()
         {
-            return await _context.Motos.ToListAsync();
+            return await _context.Motos
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .ToListAsync();
         }
 
         public async Task<Moto> GetByIdAsync(string placa)
         {
             return await _context.Motos
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
                 .FirstOrDefaultAsync(m => m.Placa == placa);
         }
 
@@ -46,6 +51,11 @@ namespace MottuApi.Repositories
         {
             _context.Motos.Remove(moto);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> ExistsAsync(string placa)
+        {
+            return await _context.Motos.AnyAsync(m => m.Placa == placa);
         }
 
         public async Task<IEnumerable<Moto>> GetByPatioAsync(string nomePatio)

@@ -2,13 +2,11 @@ using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
-    /// <summary>
-    /// Implementação do repositório para operações com clientes.
-    /// </summary>
     public class ClienteRepository : IClienteRepository
     {
         private readonly MottuDbContext _context;
@@ -20,12 +18,31 @@ namespace MottuApi.Repositories
 
         public async Task<IEnumerable<Cliente>> GetAllAsync()
         {
-            return await _context.Clientes.ToListAsync();
+            return await _context.Clientes
+                .Include(c => c.Moto)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Cliente>> GetPaginatedAsync(int page, int pageSize)
+        {
+            return await _context.Clientes
+                .Include(c => c.Moto)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
 
         public async Task<Cliente> GetByIdAsync(string usuarioCliente)
         {
             return await _context.Clientes
+                .Include(c => c.Moto)
+                .FirstOrDefaultAsync(c => c.UsuarioCliente == usuarioCliente);
+        }
+
+        public async Task<Cliente> GetByIdWithMotoAsync(string usuarioCliente)
+        {
+            return await _context.Clientes
+                .Include(c => c.Moto)
                 .FirstOrDefaultAsync(c => c.UsuarioCliente == usuarioCliente);
         }
 
@@ -45,6 +62,16 @@ namespace MottuApi.Repositories
         {
             _context.Clientes.Remove(cliente);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> ExistsAsync(string usuarioCliente)
+        {
+            return await _context.Clientes.AnyAsync(c => c.UsuarioCliente == usuarioCliente);
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            return await _context.Clientes.CountAsync();
         }
     }
 }
