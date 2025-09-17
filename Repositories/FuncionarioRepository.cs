@@ -2,57 +2,65 @@ using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
-    /// <summary>
-    /// repositório para operações com funcionários.
-    /// </summary>
-    public class FuncionarioRepository : IFuncionarioRepository
+    public class PatioRepository
     {
         private readonly MottuDbContext _context;
 
-        public FuncionarioRepository(MottuDbContext context)
+        public PatioRepository(MottuDbContext context)
         {
             _context = context;
         }
 
-        public async Task<IEnumerable<Funcionario>> GetAllAsync()
+        public async Task<List<Patio>> GetAllAsync()
         {
-            return await _context.Funcionarios
-                .Include(f => f.Patio)
+            return await _context.Patios.ToListAsync();
+        }
+
+        public async Task<List<Patio>> GetPaginatedAsync(int page, int pageSize)
+        {
+            return await _context.Patios
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
-        public async Task<Funcionario> GetByIdAsync(string usuarioFuncionario)
+        public async Task<Patio> GetByIdAsync(string nomePatio)
         {
-            return await _context.Funcionarios
-                .Include(f => f.Patio)
-                .FirstOrDefaultAsync(f => f.UsuarioFuncionario == usuarioFuncionario);
+            return await _context.Patios
+                .FirstOrDefaultAsync(p => p.NomePatio == nomePatio);
         }
 
-        public async Task AddAsync(Funcionario funcionario)
+        public async Task AddAsync(Patio patio)
         {
-            await _context.Funcionarios.AddAsync(funcionario);
+            await _context.Patios.AddAsync(patio);
             await _context.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(Funcionario funcionario)
+        public async Task UpdateAsync(Patio patio)
         {
-            _context.Funcionarios.Update(funcionario);
+            _context.Patios.Update(patio);
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAsync(Funcionario funcionario)
+        public async Task DeleteAsync(Patio patio)
         {
-            _context.Funcionarios.Remove(funcionario);
+            _context.Patios.Remove(patio);
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ExistsAsync(string usuarioFuncionario)
+        public async Task<bool> ExistsAsync(string nomePatio)
         {
-            return await _context.Funcionarios.AnyAsync(f => f.UsuarioFuncionario == usuarioFuncionario);
+            return await _context.Patios.AnyAsync(p => p.NomePatio == nomePatio);
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            return await _context.Patios.CountAsync();
         }
     }
 }

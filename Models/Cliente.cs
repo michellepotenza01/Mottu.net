@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Text.Json.Serialization;
+
 
 namespace MottuApi.Models
 {
@@ -22,6 +24,7 @@ namespace MottuApi.Models
         [Required(ErrorMessage = "A senha do cliente é obrigatória.")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
         [SwaggerSchema("Senha do cliente (mínimo 6 caracteres)", Example = "senha123")]
+        [JsonIgnore]
         public string Senha { get; set; } = string.Empty;
 
         [SwaggerSchema("Placa da moto associada ao cliente (opcional)", Example = "ABC-1234")]

@@ -7,7 +7,7 @@ namespace MottuApi.DTOs
     {
         [Required(ErrorMessage = "O nome de usuário do funcionário é obrigatório.")]
         [StringLength(50, MinimumLength = 3, ErrorMessage = "O usuário deve ter entre 3 e 50 caracteres.")]
-        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "O usuário deve conter apenas letras, números e underscore.")]
+        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "O usuário deve conter apenas letras e números.")]
         [SwaggerSchema(Description = "Nome de usuário único do funcionário", Example = "MichellePtz")]
         public string UsuarioFuncionario { get; set; } = string.Empty;
 

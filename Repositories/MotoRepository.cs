@@ -7,10 +7,7 @@ using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
-    /// <summary>
-    /// Implementação do repositório para operações com motos.
-    /// </summary>
-    public class MotoRepository : IMotoRepository
+    public class MotoRepository
     {
         private readonly MottuDbContext _context;
 
@@ -19,11 +16,21 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Moto>> GetAllAsync()
+        public async Task<List<Moto>> GetAllAsync()
         {
             return await _context.Motos
                 .Include(m => m.Patio)
                 .Include(m => m.Funcionario)
+                .ToListAsync();
+        }
+
+        public async Task<List<Moto>> GetPaginatedAsync(int page, int pageSize)
+        {
+            return await _context.Motos
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
@@ -58,11 +65,24 @@ namespace MottuApi.Repositories
             return await _context.Motos.AnyAsync(m => m.Placa == placa);
         }
 
-        public async Task<IEnumerable<Moto>> GetByPatioAsync(string nomePatio)
+        public async Task<List<Moto>> GetByPatioAsync(string nomePatio)
         {
             return await _context.Motos
                 .Where(m => m.NomePatio == nomePatio)
+                .Include(m => m.Patio)        
+                .Include(m => m.Funcionario)  
                 .ToListAsync();
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            return await _context.Motos.CountAsync();
+        }
+
+        public async Task<int> CountByStatusAndPatioAsync(StatusMoto status, string nomePatio)
+        {
+            return await _context.Motos
+                .CountAsync(m => m.Status == status && m.NomePatio == nomePatio);
         }
     }
 }

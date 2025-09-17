@@ -21,9 +21,5 @@ namespace MottuApi.DTOs
         [SwaggerSchema(Description = "Número total de vagas disponíveis no pátio", Example = 50)]
         public int VagasTotais { get; set; }
 
-        [Required(ErrorMessage = "O número de vagas ocupadas é obrigatório.")]
-        [Range(0, 1000, ErrorMessage = "As vagas ocupadas devem estar entre 0 e 1000.")]
-        [SwaggerSchema(Description = "Número de vagas atualmente ocupadas", Example = 25)]
-        public int VagasOcupadas { get; set; }
     }
 }

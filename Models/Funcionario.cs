@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Text.Json.Serialization;
+
 
 namespace MottuApi.Models
 {
@@ -22,6 +24,7 @@ namespace MottuApi.Models
         [Required(ErrorMessage = "A senha do funcionário é obrigatória.")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
         [SwaggerSchema("Senha do funcionário", Example = "func123")]
+        [JsonIgnore]
         public string Senha { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "O pátio de trabalho é obrigatório.")]
@@ -30,9 +33,11 @@ namespace MottuApi.Models
         public string NomePatio { get; set; } = string.Empty;
 
         [ForeignKey("NomePatio")]
+        [JsonIgnore]
         [SwaggerSchema("Pátio onde o funcionário está alocado")]
         public virtual Patio Patio { get; set; } = null!;
 
+        [JsonIgnore]
         public virtual ICollection<Moto>? Motos { get; set; }
     }
 }

@@ -7,21 +7,21 @@ using System.Threading.Tasks;
 
 namespace MottuApi.Services
 {
-    public class PatioService : IPatioService
+    public class PatioService
     {
-        private readonly IPatioRepository _patioRepository;
-        private readonly IMotoRepository _motoRepository;
+        private readonly PatioRepository _patioRepository;
+        private readonly MotoRepository _motoRepository;
 
-        public PatioService(IPatioRepository patioRepository, IMotoRepository motoRepository)
+        public PatioService(PatioRepository patioRepository, MotoRepository motoRepository)
         {
             _patioRepository = patioRepository;
             _motoRepository = motoRepository;
         }
 
-        public async Task<ServiceResponse<IEnumerable<Patio>>> GetPatiosAsync()
+        public async Task<ServiceResponse<List<Patio>>> GetPatiosAsync()
         {
             var patios = await _patioRepository.GetAllAsync();
-            return new ServiceResponse<IEnumerable<Patio>>(patios);
+            return new ServiceResponse<List<Patio>>(patios);
         }
 
         public async Task<ServiceResponse<Patio>> GetPatioAsync(string nomePatio)
@@ -40,7 +40,7 @@ namespace MottuApi.Services
                 NomePatio = patioDto.NomePatio,
                 Localizacao = patioDto.Localizacao,
                 VagasTotais = patioDto.VagasTotais,
-                VagasOcupadas = 0 
+                VagasOcupadas = 0
             };
 
             await _patioRepository.AddAsync(patio);
@@ -77,17 +77,16 @@ namespace MottuApi.Services
             return new ServiceResponse<bool>(true, "Pátio removido com sucesso!");
         }
 
-        public async Task<ServiceResponse<IEnumerable<Patio>>> GetPatiosPaginatedAsync(int page, int pageSize)
+        public async Task<ServiceResponse<List<Patio>>> GetPatiosPaginatedAsync(int page, int pageSize)
         {
-            var patios = await _patioRepository.GetAllAsync();
-            var paginated = patios.Skip((page - 1) * pageSize).Take(pageSize);
-            return new ServiceResponse<IEnumerable<Patio>>(paginated);
+            var patios = await _patioRepository.GetPaginatedAsync(page, pageSize);
+            return new ServiceResponse<List<Patio>>(patios);
         }
 
         public async Task<ServiceResponse<int>> GetTotalPatiosCountAsync()
         {
-            var patios = await _patioRepository.GetAllAsync();
-            return new ServiceResponse<int>(patios.Count());
+            var count = await _patioRepository.GetTotalCountAsync();
+            return new ServiceResponse<int>(count);
         }
 
         public async Task<ServiceResponse<bool>> VerificarVagasDisponiveisAsync(string nomePatio)
@@ -96,7 +95,7 @@ namespace MottuApi.Services
             if (patio == null)
                 return new ServiceResponse<bool> { Success = false, Message = "Pátio não encontrado" };
 
-            return new ServiceResponse<bool>(patio.TemVagasDisponiveis());
+            return new ServiceResponse<bool>(patio.VagasDisponiveis > 0);
         }
 
         public async Task<ServiceResponse<int>> GetVagasDisponiveisAsync(string nomePatio)

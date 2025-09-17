@@ -6,21 +6,21 @@ using System.Threading.Tasks;
 
 namespace MottuApi.Services
 {
-    public class FuncionarioService : IFuncionarioService
+    public class FuncionarioService
     {
-        private readonly IFuncionarioRepository _funcionarioRepository;
-        private readonly IPatioRepository _patioRepository;
+        private readonly FuncionarioRepository _funcionarioRepository;
+        private readonly PatioRepository _patioRepository;
 
-        public FuncionarioService(IFuncionarioRepository funcionarioRepository, IPatioRepository patioRepository)
+        public FuncionarioService(FuncionarioRepository funcionarioRepository, PatioRepository patioRepository)
         {
             _funcionarioRepository = funcionarioRepository;
             _patioRepository = patioRepository;
         }
 
-        public async Task<ServiceResponse<IEnumerable<Funcionario>>> GetFuncionariosAsync()
+        public async Task<ServiceResponse<List<Funcionario>>> GetFuncionariosAsync()
         {
             var funcionarios = await _funcionarioRepository.GetAllAsync();
-            return new ServiceResponse<IEnumerable<Funcionario>>(funcionarios);
+            return new ServiceResponse<List<Funcionario>>(funcionarios);
         }
 
         public async Task<ServiceResponse<Funcionario>> GetFuncionarioByIdAsync(string usuarioFuncionario)
@@ -43,8 +43,7 @@ namespace MottuApi.Services
                 UsuarioFuncionario = funcionarioDto.UsuarioFuncionario,
                 Nome = funcionarioDto.Nome,
                 Senha = funcionarioDto.Senha,
-                NomePatio = funcionarioDto.NomePatio,
-                Patio = patio
+                NomePatio = funcionarioDto.NomePatio
             };
 
             await _funcionarioRepository.AddAsync(funcionario);
@@ -64,7 +63,6 @@ namespace MottuApi.Services
             funcionarioExistente.Nome = funcionarioDto.Nome;
             funcionarioExistente.Senha = funcionarioDto.Senha;
             funcionarioExistente.NomePatio = funcionarioDto.NomePatio;
-            funcionarioExistente.Patio = patio;
 
             await _funcionarioRepository.UpdateAsync(funcionarioExistente);
             return new ServiceResponse<Funcionario>(funcionarioExistente, "Funcionário atualizado com sucesso!");
@@ -80,17 +78,16 @@ namespace MottuApi.Services
             return new ServiceResponse<bool>(true, "Funcionário excluído com sucesso!");
         }
 
-        public async Task<ServiceResponse<IEnumerable<Funcionario>>> GetFuncionariosPaginatedAsync(int page, int pageSize)
+        public async Task<ServiceResponse<List<Funcionario>>> GetFuncionariosPaginatedAsync(int page, int pageSize)
         {
-            var funcionarios = await _funcionarioRepository.GetAllAsync();
-            var paginated = funcionarios.Skip((page - 1) * pageSize).Take(pageSize);
-            return new ServiceResponse<IEnumerable<Funcionario>>(paginated);
+            var funcionarios = await _funcionarioRepository.GetPaginatedAsync(page, pageSize);
+            return new ServiceResponse<List<Funcionario>>(funcionarios);
         }
 
         public async Task<ServiceResponse<int>> GetTotalFuncionariosCountAsync()
         {
-            var funcionarios = await _funcionarioRepository.GetAllAsync();
-            return new ServiceResponse<int>(funcionarios.Count());
+            var count = await _funcionarioRepository.GetTotalCountAsync();
+            return new ServiceResponse<int>(count);
         }
     }
 }

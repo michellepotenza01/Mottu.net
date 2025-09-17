@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
-    public class ClienteRepository : IClienteRepository
+    public class ClienteRepository
     {
         private readonly MottuDbContext _context;
 
@@ -16,14 +16,14 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Cliente>> GetAllAsync()
+        public async Task<List<Cliente>> GetAllAsync()
         {
             return await _context.Clientes
                 .Include(c => c.Moto)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Cliente>> GetPaginatedAsync(int page, int pageSize)
+        public async Task<List<Cliente>> GetPaginatedAsync(int page, int pageSize)
         {
             return await _context.Clientes
                 .Include(c => c.Moto)
@@ -33,13 +33,6 @@ namespace MottuApi.Repositories
         }
 
         public async Task<Cliente> GetByIdAsync(string usuarioCliente)
-        {
-            return await _context.Clientes
-                .Include(c => c.Moto)
-                .FirstOrDefaultAsync(c => c.UsuarioCliente == usuarioCliente);
-        }
-
-        public async Task<Cliente> GetByIdWithMotoAsync(string usuarioCliente)
         {
             return await _context.Clientes
                 .Include(c => c.Moto)

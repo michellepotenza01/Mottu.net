@@ -27,10 +27,11 @@ namespace MottuApi.Models
         [Required(ErrorMessage = "O número de vagas ocupadas é obrigatório.")]
         [Range(0, 1000, ErrorMessage = "As vagas ocupadas devem estar entre 0 e 1000.")]
         [SwaggerSchema("Número de vagas atualmente ocupadas", Example = 25)]
-        public int VagasOcupadas { get; set; }
+        public int VagasOcupadas { get; set; } = 0;
 
         [SwaggerSchema("Número de vagas disponíveis (calculado automaticamente)")]
         public int VagasDisponiveis => VagasTotais - VagasOcupadas;
+
 
         public virtual ICollection<Moto>? Motos { get; set; }
         public virtual ICollection<Funcionario>? Funcionarios { get; set; }

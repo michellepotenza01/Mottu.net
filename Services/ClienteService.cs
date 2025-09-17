@@ -6,21 +6,21 @@ using System.Threading.Tasks;
 
 namespace MottuApi.Services
 {
-    public class ClienteService : IClienteService
+    public class ClienteService
     {
-        private readonly IClienteRepository _clienteRepository;
-        private readonly IMotoRepository _motoRepository;
+        private readonly ClienteRepository _clienteRepository;
+        private readonly MotoRepository _motoRepository;
 
-        public ClienteService(IClienteRepository clienteRepository, IMotoRepository motoRepository)
+        public ClienteService(ClienteRepository clienteRepository, MotoRepository motoRepository)
         {
             _clienteRepository = clienteRepository;
             _motoRepository = motoRepository;
         }
 
-        public async Task<ServiceResponse<IEnumerable<Cliente>>> GetClientesAsync()
+        public async Task<ServiceResponse<List<Cliente>>> GetClientesAsync()
         {
             var clientes = await _clienteRepository.GetAllAsync();
-            return new ServiceResponse<IEnumerable<Cliente>>(clientes);
+            return new ServiceResponse<List<Cliente>>(clientes);
         }
 
         public async Task<ServiceResponse<Cliente>> GetClienteByIdAsync(string usuarioCliente)
@@ -84,10 +84,10 @@ namespace MottuApi.Services
             return new ServiceResponse<bool>(true, "Cliente excluído com sucesso!");
         }
 
-        public async Task<ServiceResponse<IEnumerable<Cliente>>> GetClientesPaginatedAsync(int page, int pageSize)
+        public async Task<ServiceResponse<List<Cliente>>> GetClientesPaginatedAsync(int page, int pageSize)
         {
             var clientes = await _clienteRepository.GetPaginatedAsync(page, pageSize);
-            return new ServiceResponse<IEnumerable<Cliente>>(clientes);
+            return new ServiceResponse<List<Cliente>>(clientes);
         }
 
         public async Task<ServiceResponse<int>> GetTotalClientesCountAsync()

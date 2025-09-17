@@ -2,15 +2,12 @@ using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
-    /// <summary>
-    /// Implementação do repositório para operações com pátios.
-    /// </summary>
-  {
-    public class PatioRepository : IPatioRepository
+    public class PatioRepository
     {
         private readonly MottuDbContext _context;
 
@@ -19,9 +16,17 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Patio>> GetAllAsync()
+        public async Task<List<Patio>> GetAllAsync()
         {
             return await _context.Patios.ToListAsync();
+        }
+
+        public async Task<List<Patio>> GetPaginatedAsync(int page, int pageSize)
+        {
+            return await _context.Patios
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
 
         public async Task<Patio> GetByIdAsync(string nomePatio)
@@ -51,6 +56,11 @@ namespace MottuApi.Repositories
         public async Task<bool> ExistsAsync(string nomePatio)
         {
             return await _context.Patios.AnyAsync(p => p.NomePatio == nomePatio);
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            return await _context.Patios.CountAsync();
         }
     }
 }
