@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MottuApi.Enums;
+using Swashbuckle.AspNetCore.Filters; 
+using MottuApi.Examples;
 
 
 namespace MottuApi.Controllers
@@ -124,6 +126,7 @@ namespace MottuApi.Controllers
         /// Cria um novo funcionário no sistema.
         /// </summary>
         [HttpPost]
+        [SwaggerRequestExample(typeof(FuncionarioDto), typeof(FuncionarioExample))]
         [SwaggerOperation(Summary = "Criar novo funcionário")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(FuncionarioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]

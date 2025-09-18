@@ -5,11 +5,12 @@ using MottuApi.Services;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using Swashbuckle.AspNetCore.Filters; // ✅ ADICIONAR
+using MottuApi.Examples; // ✅ ADICIONAR
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://localhost:5147");
-
 builder.Environment.EnvironmentName = "Development";
 
 builder.Services.AddControllers()
@@ -20,6 +21,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
+// ✅ CONFIGURAÇÃO SWAGGER ATUALIZADA
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -39,7 +41,13 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(xmlPath);
 
     c.EnableAnnotations();
+
+    // ✅ ADICIONAR SUPORTE A EXEMPLOS
+    c.ExampleFilters();
 });
+
+// ✅ REGISTRAR EXEMPLOS
+builder.Services.AddSwaggerExamplesFromAssemblyOf<PatioExample>();
 
 var connectionString = builder.Configuration.GetConnectionString("OracleConnection");
 builder.Services.AddDbContext<MottuDbContext>(options =>
@@ -61,7 +69,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Mottu API v1");
-    c.RoutePrefix = string.Empty; 
+    c.RoutePrefix = string.Empty;
 });
 
 app.UseHttpsRedirection();

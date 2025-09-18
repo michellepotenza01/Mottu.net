@@ -6,6 +6,8 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Swashbuckle.AspNetCore.Filters; 
+using MottuApi.Examples;
 
 
 namespace MottuApi.Controllers
@@ -126,6 +128,7 @@ namespace MottuApi.Controllers
         /// Cria um novo pátio no sistema.
         /// </summary>
         [HttpPost]
+        [SwaggerRequestExample(typeof(PatioDto), typeof(PatioExample))]
         [SwaggerOperation(Summary = "Criar novo pátio")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(PatioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]

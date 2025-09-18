@@ -6,6 +6,8 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Swashbuckle.AspNetCore.Filters; 
+using MottuApi.Examples;
 
 namespace MottuApi.Controllers
 {
@@ -122,6 +124,7 @@ namespace MottuApi.Controllers
         /// Cria um novo cliente no sistema.
         /// </summary>
         [HttpPost]
+        [SwaggerRequestExample(typeof(ClienteDto), typeof(ClienteExample))]
         [SwaggerOperation(Summary = "Criar novo cliente")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ClienteResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]

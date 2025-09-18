@@ -7,6 +7,8 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Swashbuckle.AspNetCore.Filters; 
+using MottuApi.Examples;
 
 namespace MottuApi.Controllers
 {
@@ -66,7 +68,6 @@ namespace MottuApi.Controllers
                 new Link { Rel = "create", Href = $"{baseUrl}/api/moto", Method = "POST" }
             };
 
-            // Links de paginação
             if (page > 1)
                 links.Add(new Link { Rel = "prev", Href = $"{baseUrl}/api/moto?page={page - 1}&pageSize={pageSize}", Method = "GET" });
 
@@ -131,6 +132,7 @@ namespace MottuApi.Controllers
         /// Cria uma nova moto no sistema.
         /// </summary>
         [HttpPost]
+        [SwaggerRequestExample(typeof(MotoDto), typeof(MotoExample))]
         [SwaggerOperation(Summary = "Criar nova moto")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(MotoResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
