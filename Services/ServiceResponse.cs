@@ -15,3 +15,4 @@ namespace MottuApi.Services
             Message = message;
         }
     }
+}

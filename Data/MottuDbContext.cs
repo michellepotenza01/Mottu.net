@@ -14,7 +14,7 @@ namespace MottuApi.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-             modelBuilder.Entity<Patio>()
+            modelBuilder.Entity<Patio>()
                 .HasKey(p => p.NomePatio);
 
             modelBuilder.Entity<Funcionario>()
@@ -26,29 +26,29 @@ namespace MottuApi.Data
             modelBuilder.Entity<Cliente>()
                 .HasKey(c => c.UsuarioCliente);
 
-             modelBuilder.Entity<Moto>()
+            modelBuilder.Entity<Moto>()
                 .HasOne(m => m.Patio)
                 .WithMany(p => p.Motos)
                 .HasForeignKey(m => m.NomePatio)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade); 
 
-             modelBuilder.Entity<Moto>()
+            modelBuilder.Entity<Moto>()
                 .HasOne(m => m.Funcionario)
                 .WithMany(f => f.Motos)
                 .HasForeignKey(m => m.UsuarioFuncionario)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade); 
 
-             modelBuilder.Entity<Funcionario>()
+            modelBuilder.Entity<Funcionario>()
                 .HasOne(f => f.Patio)
                 .WithMany(p => p.Funcionarios)
                 .HasForeignKey(f => f.NomePatio)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade); 
 
-            modelBuilder.Entity<Cliente>()
+             modelBuilder.Entity<Cliente>()
                 .HasOne(c => c.Moto)
                 .WithMany()
                 .HasForeignKey(c => c.MotoPlaca)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.SetNull); 
 
             base.OnModelCreating(modelBuilder);
         }

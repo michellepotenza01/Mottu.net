@@ -1,27 +1,20 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Enums
 {
-    /// <summary>
-    /// Enum para representar o setor onde a moto está alocada.
-    /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    [SwaggerSchema(Description = "Setores de moto disponíveis no sistema")]
+    [SwaggerSchema("Setores de conservação das motos")]
     public enum SetorMoto
     {
-        /// <summary>
-        /// Setor bom.
-        /// </summary>
+        [Display(Name = "Bom", Description = "Estado de conservação excelente")]
         Bom,
 
-        /// <summary>
-        /// Setor intermediário.
-        /// </summary>
+        [Display(Name = "Intermediário", Description = "Estado de conservação regular")]
         Intermediário,
 
-        /// <summary>
-        /// Setor ruim.
-        /// </summary>
+        [Display(Name = "Ruim", Description = "Estado de conservação precisa de reparos")]
         Ruim
     }
 }

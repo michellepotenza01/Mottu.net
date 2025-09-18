@@ -1,27 +1,20 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Enums
 {
-    /// <summary>
-    /// Enum para representar o status da moto.
-    /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    [SwaggerSchema(Description = "Status de moto disponíveis no sistema")]
+    [SwaggerSchema("Status das motos no sistema")]
     public enum StatusMoto
     {
-        /// <summary>
-        /// Moto disponível para aluguel.
-        /// </summary>
+        [Display(Name = "Disponível", Description = "Moto disponível para aluguel")]
         Disponível,
 
-        /// <summary>
-        /// Moto alugada.
-        /// </summary>
+        [Display(Name = "Alugada", Description = "Moto atualmente alugada por um cliente")]
         Alugada,
 
-        /// <summary>
-        /// Moto em manutenção.
-        /// </summary>
+        [Display(Name = "Manutenção", Description = "Moto em manutenção técnica")]
         Manutenção
     }
 }

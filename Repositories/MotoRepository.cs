@@ -1,5 +1,6 @@
 using MottuApi.Data;
 using MottuApi.Models;
+using MottuApi.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;

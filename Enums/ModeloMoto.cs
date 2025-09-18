@@ -1,27 +1,20 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Enums
 {
-    /// <summary>
-    /// Enum para representar o modelo da moto.
-    /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    [SwaggerSchema(Description = "Modelos de moto disponíveis no sistema")]
+    [SwaggerSchema("Modelos de moto disponíveis no sistema Mottu")]
     public enum ModeloMoto
     {
-        /// <summary>
-        /// Modelo de moto MottuSport.
-        /// </summary>
+        [Display(Name = "MottuSport", Description = "Modelo esportivo de alta performance")]
         MottuSport,
 
-        /// <summary>
-        /// Modelo de moto MottuE.
-        /// </summary>
+        [Display(Name = "MottuE", Description = "Modelo elétrico eco-friendly")]
         MottuE,
 
-        /// <summary>
-        /// Modelo de moto MottuPop.
-        /// </summary>
+        [Display(Name = "MottuPop", Description = "Modelo popular econômico")]
         MottuPop
     }
 }

@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Text.Json.Serialization;
 
-
 namespace MottuApi.Models
 {
     [Table("Clientes")]
@@ -13,21 +12,21 @@ namespace MottuApi.Models
         [Required(ErrorMessage = "O nome de usuário do cliente é obrigatório.")]
         [StringLength(50, MinimumLength = 3, ErrorMessage = "O usuário deve ter entre 3 e 50 caracteres.")]
         [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "O usuário deve conter apenas letras, números e underscore.")]
-        [SwaggerSchema("Nome de usuário único do cliente", Example = "joao_silva")]
+        [SwaggerSchema("Nome de usuário único do cliente")]
         public string UsuarioCliente { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "O nome completo do cliente é obrigatório.")]
         [StringLength(100, MinimumLength = 5, ErrorMessage = "O nome deve ter entre 5 e 100 caracteres.")]
-        [SwaggerSchema("Nome completo do cliente", Example = "Michelle Marques")]
+        [SwaggerSchema("Nome completo do cliente")]
         public string Nome { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "A senha do cliente é obrigatória.")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
-        [SwaggerSchema("Senha do cliente (mínimo 6 caracteres)", Example = "senha123")]
+        [SwaggerSchema("Senha do cliente (mínimo 6 caracteres)")]
         [JsonIgnore]
         public string Senha { get; set; } = string.Empty;
 
-        [SwaggerSchema("Placa da moto associada ao cliente (opcional)", Example = "ABC-1234")]
+        [SwaggerSchema("Placa da moto associada ao cliente (opcional)")]
         [RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "Formato de placa inválido. Use: XXX-0000")]
         public string? MotoPlaca { get; set; }
 
