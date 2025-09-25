@@ -136,6 +136,8 @@ POST /api/Cliente
 - **Tamanho de senha**: Mínimo de 6 caracteres.
 - **Vagas disponíveis**: Verificação antes de adicionar motos.
 - **Integridade referencial**: Funcionário deve pertencer ao pátio.
+- **Integridade referencial**: Moto deve ser alterada, adicionada ou removida apenas por Funcionário.
+
 
 ---
 
