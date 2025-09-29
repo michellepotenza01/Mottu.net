@@ -1,5 +1,5 @@
 using MottuApi.DTOs;
-using MottuApi.Enums;
+using MottuApi3.Enums;
 using Swashbuckle.AspNetCore.Filters;
 
 namespace MottuApi.Examples

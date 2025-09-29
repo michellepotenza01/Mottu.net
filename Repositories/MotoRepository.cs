@@ -1,10 +1,10 @@
 using MottuApi.Data;
 using MottuApi.Models;
-using MottuApi.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MottuApi3.Enums;
 
 namespace MottuApi.Repositories
 {

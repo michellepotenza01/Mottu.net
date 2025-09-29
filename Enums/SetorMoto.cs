@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace MottuApi.Enums
+namespace MottuApi3.Enums
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [SwaggerSchema("Setores de conservação das motos")]

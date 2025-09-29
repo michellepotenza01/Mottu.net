@@ -6,7 +6,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MottuApi.Enums;
+using MottuApi3.Enums;
 using Swashbuckle.AspNetCore.Filters; 
 using MottuApi.Examples;
 

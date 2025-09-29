@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using MottuApi.Enums;
+using MottuApi3.Enums;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.DTOs

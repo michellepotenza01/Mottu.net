@@ -11,7 +11,7 @@ namespace MottuApi.Examples
             {
                 UsuarioFuncionario = "LuhDani",
                 Nome = "Luisa Danielle",
-                Senha = "LUhlu00",
+                Senha = "Luhlu00",
                 NomePatio = "Patio Centro"
             };
         }

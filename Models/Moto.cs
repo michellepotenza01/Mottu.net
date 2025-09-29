@@ -1,10 +1,10 @@
-﻿    using System.ComponentModel.DataAnnotations;
-    using System.ComponentModel.DataAnnotations.Schema;
-    using MottuApi.Enums;
-    using Swashbuckle.AspNetCore.Annotations;
-    using System.Text.Json.Serialization;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Swashbuckle.AspNetCore.Annotations;
+using System.Text.Json.Serialization;
+using MottuApi3.Enums;
 
-    namespace MottuApi.Models
+namespace MottuApi.Models
     {
         [Table("Motos")]
         public class Moto

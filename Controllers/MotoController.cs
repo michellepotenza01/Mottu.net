@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Services;
-using MottuApi.Enums;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Swashbuckle.AspNetCore.Filters; 
+using Swashbuckle.AspNetCore.Filters;
 using MottuApi.Examples;
+using MottuApi3.Enums;
 
 namespace MottuApi.Controllers
 {
