@@ -27,7 +27,7 @@ namespace MottuApi.Services
         {
             var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
             if (cliente == null)
-                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente não encontrado" };
+                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente nao encontrado" };
 
             return new ServiceResponse<Cliente>(cliente);
         }
@@ -38,7 +38,7 @@ namespace MottuApi.Services
             {
                 var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
                 if (moto == null)
-                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto não encontrada" };
+                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto nao encontrada" };
             }
 
             var cliente = new Cliente
@@ -57,13 +57,13 @@ namespace MottuApi.Services
         {
             var clienteExistente = await _clienteRepository.GetByIdAsync(usuarioCliente);
             if (clienteExistente == null)
-                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente não encontrado" };
+                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente nao encontrado" };
 
             if (!string.IsNullOrEmpty(clienteDto.MotoPlaca))
             {
                 var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
                 if (moto == null)
-                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto não encontrada" };
+                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto nao encontrada" };
             }
 
             clienteExistente.Nome = clienteDto.Nome;
@@ -78,10 +78,10 @@ namespace MottuApi.Services
         {
             var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
             if (cliente == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Cliente não encontrado" };
+                return new ServiceResponse<bool> { Success = false, Message = "Cliente nao encontrado" };
 
             await _clienteRepository.DeleteAsync(cliente);
-            return new ServiceResponse<bool>(true, "Cliente excluído com sucesso!");
+            return new ServiceResponse<bool>(true, "Cliente excluido com sucesso!");
         }
 
         public async Task<ServiceResponse<List<Cliente>>> GetClientesPaginatedAsync(int page, int pageSize)

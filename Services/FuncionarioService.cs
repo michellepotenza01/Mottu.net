@@ -27,7 +27,7 @@ namespace MottuApi.Services
         {
             var funcionario = await _funcionarioRepository.GetByIdAsync(usuarioFuncionario);
             if (funcionario == null)
-                return new ServiceResponse<Funcionario> { Success = false, Message = "Funcionário não encontrado" };
+                return new ServiceResponse<Funcionario> { Success = false, Message = "Funcionario nao encontrado" };
 
             return new ServiceResponse<Funcionario>(funcionario);
         }
@@ -36,7 +36,7 @@ namespace MottuApi.Services
         {
             var patio = await _patioRepository.GetByIdAsync(funcionarioDto.NomePatio);
             if (patio == null)
-                return new ServiceResponse<Funcionario> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<Funcionario> { Success = false, Message = "Patio nao encontrado" };
 
             var funcionario = new Funcionario
             {
@@ -47,35 +47,35 @@ namespace MottuApi.Services
             };
 
             await _funcionarioRepository.AddAsync(funcionario);
-            return new ServiceResponse<Funcionario>(funcionario, "Funcionário criado com sucesso!");
+            return new ServiceResponse<Funcionario>(funcionario, "Funcionario criado com sucesso!");
         }
 
         public async Task<ServiceResponse<Funcionario>> UpdateFuncionarioAsync(string usuarioFuncionario, FuncionarioDto funcionarioDto)
         {
             var funcionarioExistente = await _funcionarioRepository.GetByIdAsync(usuarioFuncionario);
             if (funcionarioExistente == null)
-                return new ServiceResponse<Funcionario> { Success = false, Message = "Funcionário não encontrado" };
+                return new ServiceResponse<Funcionario> { Success = false, Message = "Funcionario nao encontrado" };
 
             var patio = await _patioRepository.GetByIdAsync(funcionarioDto.NomePatio);
             if (patio == null)
-                return new ServiceResponse<Funcionario> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<Funcionario> { Success = false, Message = "Patio nao encontrado" };
 
             funcionarioExistente.Nome = funcionarioDto.Nome;
             funcionarioExistente.Senha = funcionarioDto.Senha;
             funcionarioExistente.NomePatio = funcionarioDto.NomePatio;
 
             await _funcionarioRepository.UpdateAsync(funcionarioExistente);
-            return new ServiceResponse<Funcionario>(funcionarioExistente, "Funcionário atualizado com sucesso!");
+            return new ServiceResponse<Funcionario>(funcionarioExistente, "Funcionario atualizado com sucesso!");
         }
 
         public async Task<ServiceResponse<bool>> DeleteFuncionarioAsync(string usuarioFuncionario)
         {
             var funcionario = await _funcionarioRepository.GetByIdAsync(usuarioFuncionario);
             if (funcionario == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Funcionário não encontrado" };
+                return new ServiceResponse<bool> { Success = false, Message = "Funcionario nao encontrado" };
 
             await _funcionarioRepository.DeleteAsync(funcionario);
-            return new ServiceResponse<bool>(true, "Funcionário excluído com sucesso!");
+            return new ServiceResponse<bool>(true, "Funcionario excluido com sucesso!");
         }
 
         public async Task<ServiceResponse<List<Funcionario>>> GetFuncionariosPaginatedAsync(int page, int pageSize)

@@ -26,14 +26,14 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todas as motos com paginação e filtros opcionais.
+        /// Retorna todas as motos com paginacao e filtros opcionais.
         /// </summary>
-        /// <param name="page">Número da página (padrão: 1)</param>
-        /// <param name="pageSize">Itens por página (padrão: 10, máximo: 50)</param>
+        /// <param name="page">Numero da pagina (padrao: 1)</param>
+        /// <param name="pageSize">Itens por pagina (padrao: 10, maximo: 50)</param>
         /// <param name="status">Filtrar por status da moto</param>
-        /// <param name="setor">Filtrar por setor de conservação</param>
+        /// <param name="setor">Filtrar por setor de conservacao</param>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todas as motos com paginação")]
+        [SwaggerOperation(Summary = "Obter todas as motos com paginacao")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Moto>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
@@ -44,10 +44,10 @@ namespace MottuApi.Controllers
             [FromQuery] SetorMoto? setor = null)
         {
             if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O número da página deve ser maior que 0." });
+                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
 
             if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da página deve estar entre 1 e 50." });
+                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
 
             var motosResponse = await _motoService.GetMotosPaginatedAsync(page, pageSize, status, setor);
             var totalCountResponse = await _motoService.GetTotalMotosCountAsync(status, setor);
@@ -88,7 +88,7 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna uma moto específica pela placa.
+        /// Retorna uma moto especifica pela placa.
         /// </summary>
         /// <param name="placa">Placa da moto no formato XXX-0000</param>
         [HttpGet("{placa}")]
@@ -99,7 +99,7 @@ namespace MottuApi.Controllers
         public async Task<ActionResult> GetMotoByPlaca([FromRoute] string placa)
         {
             if (string.IsNullOrEmpty(placa) || !System.Text.RegularExpressions.Regex.IsMatch(placa, @"^[A-Z]{3}-\d{4}$"))
-                return BadRequest(new ErrorResponse { Message = "Formato de placa inválido. Use: XXX-0000" });
+                return BadRequest(new ErrorResponse { Message = "Formato de placa invï¿½lido. Use: XXX-0000" });
 
             var response = await _motoService.GetMotoAsync(placa);
 
@@ -142,7 +142,7 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
@@ -150,7 +150,7 @@ namespace MottuApi.Controllers
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -199,18 +199,18 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
             if (placa != motoDto.Placa)
-                return BadRequest(new ErrorResponse { Message = "A placa da URL não corresponde à placa do corpo da requisição." });
+                return BadRequest(new ErrorResponse { Message = "A placa da URL nÃ£o corresponde Ã  placa do corpo da requisicao." });
 
             var response = await _motoService.UpdateMotoAsync(placa, motoDto);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrada"))
+                if (response.Message.Contains("nao encontrada"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -241,7 +241,7 @@ namespace MottuApi.Controllers
         /// <summary>
         /// Exclui uma moto do sistema.
         /// </summary>
-        /// <param name="placa">Placa da moto a ser excluída</param>
+        /// <param name="placa">Placa da moto a ser excluï¿½da</param>
         [HttpDelete("{placa}")]
         [SwaggerOperation(Summary = "Excluir moto")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -250,13 +250,13 @@ namespace MottuApi.Controllers
         public async Task<IActionResult> DeleteMoto([FromRoute] string placa)
         {
             if (string.IsNullOrEmpty(placa) || !System.Text.RegularExpressions.Regex.IsMatch(placa, @"^[A-Z]{3}-\d{4}$"))
-                return BadRequest(new ErrorResponse { Message = "Formato de placa inválido. Use: XXX-0000" });
+                return BadRequest(new ErrorResponse { Message = "Formato de placa invalido. Use: XXX-0000" });
 
             var response = await _motoService.DeleteMotoAsync(placa);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrada"))
+                if (response.Message.Contains("nao encontrada"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });

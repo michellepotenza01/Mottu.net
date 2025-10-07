@@ -12,7 +12,7 @@ namespace MottuApi.Examples
             {
                 Placa = "DBC-0987",
                 Modelo = ModeloMoto.MottuSport,
-                Status = StatusMoto.Disponível,
+                Status = StatusMoto.Disponivel,
                 Setor = SetorMoto.Bom,
                 NomePatio = "Patio Centro",
                 UsuarioFuncionario = "michelle0ptz"

@@ -1,4 +1,4 @@
-﻿using MottuApi.Models;
+using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Repositories;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace MottuApi.Services
         {
             var moto = await _motoRepository.GetByIdAsync(placa);
             if (moto == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Moto não encontrada" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Moto nao encontrada" };
 
             return new ServiceResponse<Moto>(moto);
         }
@@ -47,21 +47,21 @@ namespace MottuApi.Services
         {
             var motoExistente = await _motoRepository.GetByIdAsync(motoDto.Placa);
             if (motoExistente != null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Placa já cadastrada" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Placa ja cadastrada" };
 
             var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
             if (funcionario == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionário não encontrado" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao encontrado" };
 
             if (funcionario.NomePatio != motoDto.NomePatio)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionário não pertence a este pátio" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao pertence a este patio" };
 
             var patio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
             if (patio == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Patio nao encontrado" };
 
             if (patio.VagasOcupadas >= patio.VagasTotais)
-                return new ServiceResponse<Moto> { Success = false, Message = "Não há vagas disponíveis no pátio" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no patio" };
 
             var moto = new Moto
             {
@@ -73,7 +73,7 @@ namespace MottuApi.Services
                 UsuarioFuncionario = motoDto.UsuarioFuncionario
             };
 
-            if (moto.Status == StatusMoto.Disponível || moto.Status == StatusMoto.Manutenção)
+            if (moto.Status == StatusMoto.Disponivel || moto.Status == StatusMoto.Manutencao)
             {
                 patio.VagasOcupadas++;
                 await _patioRepository.UpdateAsync(patio);
@@ -87,14 +87,14 @@ namespace MottuApi.Services
         {
             var motoExistente = await _motoRepository.GetByIdAsync(placa);
             if (motoExistente == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Moto não encontrada" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Moto nao encontrada" };
 
             var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
             if (funcionario == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionário não encontrado" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao encontrado" };
 
             if (funcionario.NomePatio != motoDto.NomePatio)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionário não pertence a este pátio" };
+                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao pertence a este patio" };
 
             var patioAntigo = await _patioRepository.GetByIdAsync(motoExistente.NomePatio);
             var statusAntigo = motoExistente.Status;
@@ -103,19 +103,19 @@ namespace MottuApi.Services
             {
                 var novoPatio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
                 if (novoPatio == null)
-                    return new ServiceResponse<Moto> { Success = false, Message = "Novo pátio não encontrado" };
+                    return new ServiceResponse<Moto> { Success = false, Message = "Novo patio nao encontrado" };
 
                 if (novoPatio.VagasOcupadas >= novoPatio.VagasTotais &&
-                    (motoDto.Status == StatusMoto.Disponível || motoDto.Status == StatusMoto.Manutenção))
-                    return new ServiceResponse<Moto> { Success = false, Message = "Não há vagas disponíveis no novo pátio" };
+                    (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao))
+                    return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no novo patio" };
 
-                if (statusAntigo == StatusMoto.Disponível || statusAntigo == StatusMoto.Manutenção)
+                if (statusAntigo == StatusMoto.Disponivel || statusAntigo == StatusMoto.Manutencao)
                 {
                     patioAntigo.VagasOcupadas--;
                     await _patioRepository.UpdateAsync(patioAntigo);
                 }
 
-                if (motoDto.Status == StatusMoto.Disponível || motoDto.Status == StatusMoto.Manutenção)
+                if (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao)
                 {
                     novoPatio.VagasOcupadas++;
                     await _patioRepository.UpdateAsync(novoPatio);
@@ -127,17 +127,17 @@ namespace MottuApi.Services
             {
                 if (statusAntigo != motoDto.Status)
                 {
-                    if ((statusAntigo == StatusMoto.Disponível || statusAntigo == StatusMoto.Manutenção) &&
+                    if ((statusAntigo == StatusMoto.Disponivel || statusAntigo == StatusMoto.Manutencao) &&
                         motoDto.Status == StatusMoto.Alugada)
                     {
                         patioAntigo.VagasOcupadas--;
                         await _patioRepository.UpdateAsync(patioAntigo);
                     }
                     else if (statusAntigo == StatusMoto.Alugada &&
-                             (motoDto.Status == StatusMoto.Disponível || motoDto.Status == StatusMoto.Manutenção))
+                             (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao))
                     {
                         if (patioAntigo.VagasOcupadas >= patioAntigo.VagasTotais)
-                            return new ServiceResponse<Moto> { Success = false, Message = "Não há vagas disponíveis no pátio" };
+                            return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no patio" };
 
                         patioAntigo.VagasOcupadas++;
                         await _patioRepository.UpdateAsync(patioAntigo);
@@ -158,11 +158,11 @@ namespace MottuApi.Services
         {
             var moto = await _motoRepository.GetByIdAsync(placa);
             if (moto == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Moto não encontrada" };
+                return new ServiceResponse<bool> { Success = false, Message = "Moto nao encontrada" };
 
             var patio = await _patioRepository.GetByIdAsync(moto.NomePatio);
 
-            if (moto.Status == StatusMoto.Disponível || moto.Status == StatusMoto.Manutenção)
+            if (moto.Status == StatusMoto.Disponivel || moto.Status == StatusMoto.Manutencao)
             {
                 patio.VagasOcupadas--;
                 await _patioRepository.UpdateAsync(patio);

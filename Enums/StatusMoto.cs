@@ -8,13 +8,13 @@ namespace MottuApi3.Enums
     [SwaggerSchema("Status das motos no sistema")]
     public enum StatusMoto
     {
-        [Display(Name = "Disponível", Description = "Moto disponível para aluguel")]
-        Disponível,
+        [Display(Name = "Disponivel", Description = "Moto disponivel para aluguel")]
+        Disponivel,
 
         [Display(Name = "Alugada", Description = "Moto atualmente alugada por um cliente")]
         Alugada,
 
-        [Display(Name = "Manutenção", Description = "Moto em manutenção técnica")]
-        Manutenção
+        [Display(Name = "Manutencao", Description = "Moto em manutencao tecnica")]
+        Manutencao
     }
 }

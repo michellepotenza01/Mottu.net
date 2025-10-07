@@ -28,7 +28,7 @@ namespace MottuApi.Services
         {
             var patio = await _patioRepository.GetByIdAsync(nomePatio);
             if (patio == null)
-                return new ServiceResponse<Patio> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<Patio> { Success = false, Message = "Patio nao encontrado" };
 
             return new ServiceResponse<Patio>(patio);
         }
@@ -44,37 +44,37 @@ namespace MottuApi.Services
             };
 
             await _patioRepository.AddAsync(patio);
-            return new ServiceResponse<Patio>(patio, "Pátio criado com sucesso!");
+            return new ServiceResponse<Patio>(patio, "Patio criado com sucesso!");
         }
 
         public async Task<ServiceResponse<Patio>> UpdatePatioAsync(string nomePatio, PatioDto patioDto)
         {
             var patioExistente = await _patioRepository.GetByIdAsync(nomePatio);
             if (patioExistente == null)
-                return new ServiceResponse<Patio> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<Patio> { Success = false, Message = "Patio nao encontrado" };
 
             if (patioDto.VagasTotais < patioExistente.VagasOcupadas)
-                return new ServiceResponse<Patio> { Success = false, Message = "Não é possível reduzir vagas totais abaixo das vagas ocupadas" };
+                return new ServiceResponse<Patio> { Success = false, Message = "Nao foi possivel reduzir vagas totais abaixo das vagas ocupadas" };
 
             patioExistente.Localizacao = patioDto.Localizacao;
             patioExistente.VagasTotais = patioDto.VagasTotais;
 
             await _patioRepository.UpdateAsync(patioExistente);
-            return new ServiceResponse<Patio>(patioExistente, "Pátio atualizado com sucesso!");
+            return new ServiceResponse<Patio>(patioExistente, "Pï¿½tio atualizado com sucesso!");
         }
 
         public async Task<ServiceResponse<bool>> DeletePatioAsync(string nomePatio)
         {
             var patio = await _patioRepository.GetByIdAsync(nomePatio);
             if (patio == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<bool> { Success = false, Message = "Patio nao encontrado" };
 
             var motosNoPatio = await _motoRepository.GetByPatioAsync(nomePatio);
             if (motosNoPatio.Any())
-                return new ServiceResponse<bool> { Success = false, Message = "Não é possível excluir o pátio enquanto houver motos associadas" };
+                return new ServiceResponse<bool> { Success = false, Message = "Nao foi possivel excluir o patio enquanto houver motos associadas" };
 
             await _patioRepository.DeleteAsync(patio);
-            return new ServiceResponse<bool>(true, "Pátio removido com sucesso!");
+            return new ServiceResponse<bool>(true, "Patio removido com sucesso!");
         }
 
         public async Task<ServiceResponse<List<Patio>>> GetPatiosPaginatedAsync(int page, int pageSize)
@@ -93,7 +93,7 @@ namespace MottuApi.Services
         {
             var patio = await _patioRepository.GetByIdAsync(nomePatio);
             if (patio == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<bool> { Success = false, Message = "Pï¿½tio nï¿½o encontrado" };
 
             return new ServiceResponse<bool>(patio.VagasDisponiveis > 0);
         }
@@ -102,7 +102,7 @@ namespace MottuApi.Services
         {
             var patio = await _patioRepository.GetByIdAsync(nomePatio);
             if (patio == null)
-                return new ServiceResponse<int> { Success = false, Message = "Pátio não encontrado" };
+                return new ServiceResponse<int> { Success = false, Message = "Pï¿½tio nï¿½o encontrado" };
 
             return new ServiceResponse<int>(patio.VagasDisponiveis);
         }

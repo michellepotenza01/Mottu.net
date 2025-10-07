@@ -15,7 +15,7 @@ namespace MottuApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Tags("Funcionários")]
+    [Tags("Funcionarios")]
     [Produces("application/json")]
     public class FuncionarioController : ControllerBase
     {
@@ -27,12 +27,12 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todos os funcionários com paginação.
+        /// Retorna todos os funcionarios com paginacao.
         /// </summary>
-        /// <param name="page">Número da página (padrão: 1)</param>
-        /// <param name="pageSize">Itens por página (padrão: 10, máximo: 50)</param>
+        /// <param name="page">NNumero da pagina (padrao: 1)</param>
+        /// <param name="pageSize">Itens por pagina (padrao: 10, maximo: 50)</param>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todos os funcionários com paginação")]
+        [SwaggerOperation(Summary = "Obter todos os funcionarios com paginacao")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Funcionario>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
@@ -41,10 +41,10 @@ namespace MottuApi.Controllers
             [FromQuery] int pageSize = 10)
         {
             if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O número da página deve ser maior que 0." });
+                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
 
             if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da página deve estar entre 1 e 50." });
+                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
 
             var funcionariosResponse = await _funcionarioService.GetFuncionariosPaginatedAsync(page, pageSize);
             var totalCountResponse = await _funcionarioService.GetTotalFuncionariosCountAsync();
@@ -85,18 +85,18 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna um funcionário específico pelo usuário.
+        /// Retorna um funcionario especifico pelo usuario.
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuário do funcionário</param>
+        /// <param name="usuarioFuncionario">Usuario do funcionario</param>
         [HttpGet("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Obter funcionário por usuário")]
+        [SwaggerOperation(Summary = "Obter funcionario por usuario")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FuncionarioResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<ActionResult> GetFuncionarioByUsuario([FromRoute] string usuarioFuncionario)
         {
             if (string.IsNullOrEmpty(usuarioFuncionario))
-                return BadRequest(new ErrorResponse { Message = "Usuário do funcionário é obrigatório." });
+                return BadRequest(new ErrorResponse { Message = "Usuario do funcionario e obrigatorio." });
 
             var response = await _funcionarioService.GetFuncionarioByIdAsync(usuarioFuncionario);
 
@@ -123,11 +123,11 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Cria um novo funcionário no sistema.
+        /// Cria um novo funcionario no sistema.
         /// </summary>
         [HttpPost]
         [SwaggerRequestExample(typeof(FuncionarioDto), typeof(FuncionarioExample))]
-        [SwaggerOperation(Summary = "Criar novo funcionário")]
+        [SwaggerOperation(Summary = "Criar novo funcionario")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(FuncionarioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
@@ -136,7 +136,7 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
@@ -144,7 +144,7 @@ namespace MottuApi.Controllers
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -174,12 +174,12 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Atualiza um funcionário existente.
+        /// Atualiza um funcionario existente.
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuário do funcionário a ser atualizado</param>
-        /// <param name="funcionarioDto">Dados atualizados do funcionário</param>
+        /// <param name="usuarioFuncionario">Usuario do funcionario a ser atualizado</param>
+        /// <param name="funcionarioDto">Dados atualizados do funcionario</param>
         [HttpPut("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Atualizar funcionário existente")]
+        [SwaggerOperation(Summary = "Atualizar funcionario existente")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FuncionarioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
@@ -190,18 +190,18 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
             if (usuarioFuncionario != funcionarioDto.UsuarioFuncionario)
-                return BadRequest(new ErrorResponse { Message = "O usuário do funcionário na URL não corresponde ao usuário do corpo da requisição." });
+                return BadRequest(new ErrorResponse { Message = "O usuario do funcionario na URL nao corresponde ao usuario do corpo da requisicao." });
 
             var response = await _funcionarioService.UpdateFuncionarioAsync(usuarioFuncionario, funcionarioDto);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -227,24 +227,24 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Exclui um funcionário do sistema.
+        /// Exclui um funcionario do sistema.
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuário do funcionário a ser excluído</param>
+        /// <param name="usuarioFuncionario">Usuario do funcionario a ser excluido</param>
         [HttpDelete("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Excluir funcionário")]
+        [SwaggerOperation(Summary = "Excluir funcionario")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<IActionResult> DeleteFuncionario([FromRoute] string usuarioFuncionario)
         {
             if (string.IsNullOrEmpty(usuarioFuncionario))
-                return BadRequest(new ErrorResponse { Message = "Usuário do funcionário é obrigatório." });
+                return BadRequest(new ErrorResponse { Message = "Usuario do funcionario e obrigatorio." });
 
             var response = await _funcionarioService.DeleteFuncionarioAsync(usuarioFuncionario);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });

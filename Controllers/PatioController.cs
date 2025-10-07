@@ -14,7 +14,7 @@ namespace MottuApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Tags("Pátios")]
+    [Tags("Patios")]
     [Produces("application/json")]
     public class PatioController : ControllerBase
     {
@@ -26,12 +26,12 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todos os pátios com paginação.
+        /// Retorna todos os patios com paginacao.
         /// </summary>
-        /// <param name="page">Número da página (padrão: 1)</param>
-        /// <param name="pageSize">Itens por página (padrão: 10, máximo: 50)</param>
+        /// <param name="page">NÃºmero da pagina (padrÃ£o: 1)</param>
+        /// <param name="pageSize">Itens por pagina (padrÃ£o: 10, maximo: 50)</param>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todos os pátios com paginação")]
+        [SwaggerOperation(Summary = "Obter todos os patios com paginacao")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Patio>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
@@ -40,10 +40,10 @@ namespace MottuApi.Controllers
             [FromQuery] int pageSize = 10)
         {
             if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O número da página deve ser maior que 0." });
+                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
 
             if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da página deve estar entre 1 e 50." });
+                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
 
             var patiosResponse = await _patioService.GetPatiosPaginatedAsync(page, pageSize);
             var totalCountResponse = await _patioService.GetTotalPatiosCountAsync();
@@ -84,18 +84,18 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna um pátio específico pelo nome.
+        /// Retorna um patio especifico pelo nome.
         /// </summary>
-        /// <param name="nomePatio">Nome do pátio</param>
+        /// <param name="nomePatio">Nome do patio</param>
         [HttpGet("{nomePatio}")]
-        [SwaggerOperation(Summary = "Obter pátio por nome")]
+        [SwaggerOperation(Summary = "Obter patio por nome")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PatioResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<ActionResult> GetPatioByName([FromRoute] string nomePatio)
         {
             if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do pátio é obrigatório." });
+                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
 
             var response = await _patioService.GetPatioAsync(nomePatio);
 
@@ -125,11 +125,11 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Cria um novo pátio no sistema.
+        /// Cria um novo patio no sistema.
         /// </summary>
         [HttpPost]
         [SwaggerRequestExample(typeof(PatioDto), typeof(PatioExample))]
-        [SwaggerOperation(Summary = "Criar novo pátio")]
+        [SwaggerOperation(Summary = "Criar novo patio")]
         [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(PatioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<ActionResult> CreatePatio([FromBody] PatioDto patioDto)
@@ -137,7 +137,7 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
@@ -173,12 +173,12 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Atualiza um pátio existente.
+        /// Atualiza um patio existente.
         /// </summary>
-        /// <param name="nomePatio">Nome do pátio a ser atualizado</param>
-        /// <param name="patioDto">Dados atualizados do pátio</param>
+        /// <param name="nomePatio">Nome do patio a ser atualizado</param>
+        /// <param name="patioDto">Dados atualizados do patio</param>
         [HttpPut("{nomePatio}")]
-        [SwaggerOperation(Summary = "Atualizar pátio existente")]
+        [SwaggerOperation(Summary = "Atualizar patio existente")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PatioResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
@@ -189,18 +189,18 @@ namespace MottuApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new ErrorResponse
                 {
-                    Message = "Dados inválidos",
+                    Message = "Dados invalidos",
                     Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
                 });
 
             if (nomePatio != patioDto.NomePatio)
-                return BadRequest(new ErrorResponse { Message = "O nome do pátio na URL não corresponde ao nome do corpo da requisição." });
+                return BadRequest(new ErrorResponse { Message = "O nome do patio na URL nao corresponde ao nome do corpo da requisicao." });
 
             var response = await _patioService.UpdatePatioAsync(nomePatio, patioDto);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -229,24 +229,24 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Exclui um pátio do sistema.
+        /// Exclui um patio do sistema.
         /// </summary>
-        /// <param name="nomePatio">Nome do pátio a ser excluído</param>
+        /// <param name="nomePatio">Nome do patio a ser excluido</param>
         [HttpDelete("{nomePatio}")]
-        [SwaggerOperation(Summary = "Excluir pátio")]
+        [SwaggerOperation(Summary = "Excluir patio")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<IActionResult> DeletePatio([FromRoute] string nomePatio)
         {
             if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do pátio é obrigatório." });
+                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
 
             var response = await _patioService.DeletePatioAsync(nomePatio);
 
             if (!response.Success)
             {
-                if (response.Message.Contains("não encontrado"))
+                if (response.Message.Contains("nao encontrado"))
                     return NotFound(new ErrorResponse { Message = response.Message });
 
                 return BadRequest(new ErrorResponse { Message = response.Message });
@@ -256,18 +256,18 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Obtém a quantidade de vagas disponíveis em um pátio.
+        /// Obtem a quantidade de vagas disponiveis em um patio.
         /// </summary>
-        /// <param name="nomePatio">Nome do pátio</param>
+        /// <param name="nomePatio">Nome do patio</param>
         [HttpGet("{nomePatio}/vagas")]
-        [SwaggerOperation(Summary = "Obter vagas disponíveis no pátio")]
+        [SwaggerOperation(Summary = "Obter vagas disponiveis no patio")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(VagasResponse))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
         public async Task<ActionResult> GetVagasDisponiveis([FromRoute] string nomePatio)
         {
             if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do pátio é obrigatório." });
+                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
 
             var response = await _patioService.GetVagasDisponiveisAsync(nomePatio);
 

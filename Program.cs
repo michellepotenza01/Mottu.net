@@ -1,12 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using MottuApi.Data;
 using MottuApi.Repositories;
 using MottuApi.Services;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 using System.Text.Json.Serialization;
-using Swashbuckle.AspNetCore.Filters; // ✅ ADICIONAR
-using MottuApi.Examples; // ✅ ADICIONAR
+using Swashbuckle.AspNetCore.Filters; 
+using MottuApi.Examples; 
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,14 +21,13 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
-// ✅ CONFIGURAÇÃO SWAGGER ATUALIZADA
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Mottu API - Gerenciamento de Pátio de Motos",
+        Title = "Mottu API - Gerenciamento de Patio de Motos",
         Version = "v1",
-        Description = "API RESTful para gerenciamento de pátio de motos com controle de vagas, funcionários, motos e clientes.",
+        Description = "API RESTful para gerenciamento de patio de motos com controle de vagas, funcionarios, motos e clientes.",
         Contact = new OpenApiContact
         {
             Name = "Equipe Mottu",
@@ -42,11 +41,9 @@ builder.Services.AddSwaggerGen(c =>
 
     c.EnableAnnotations();
 
-    // ✅ ADICIONAR SUPORTE A EXEMPLOS
     c.ExampleFilters();
 });
 
-// ✅ REGISTRAR EXEMPLOS
 builder.Services.AddSwaggerExamplesFromAssemblyOf<PatioExample>();
 
 var connectionString = builder.Configuration.GetConnectionString("OracleConnection");
@@ -80,7 +77,7 @@ Console.WriteLine("==============================================");
 Console.WriteLine(" MOTTU API INICIADA COM SUCESSO!");
 Console.WriteLine("==============================================");
 Console.WriteLine(" URL: http://localhost:5147/");
-Console.WriteLine(" Swagger disponível na URL acima");
+Console.WriteLine(" Swagger disponivel na URL acima");
 Console.WriteLine(" Environment: Development");
 Console.WriteLine("==============================================");
 
