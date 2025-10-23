@@ -14,7 +14,61 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        // ✅ TODOS OS MÉTODOS NORMAS COM LINQ
+        // ✅ MÉTODOS PAGINADOS ADICIONADOS
+        public async Task<(List<Moto> Motos, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Motos
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var motos = await query
+                .OrderBy(m => m.Placa)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (motos, totalCount);
+        }
+
+        public async Task<(List<Moto> Motos, int TotalCount)> GetByStatusPagedAsync(StatusMoto status, int pageNumber, int pageSize)
+        {
+            var query = _context.Motos
+                .Where(m => m.Status == status)
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var motos = await query
+                .OrderBy(m => m.Placa)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (motos, totalCount);
+        }
+
+        public async Task<(List<Moto> Motos, int TotalCount)> GetByPatioPagedAsync(string nomePatio, int pageNumber, int pageSize)
+        {
+            var query = _context.Motos
+                .Where(m => m.NomePatio == nomePatio)
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var motos = await query
+                .OrderBy(m => m.Placa)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (motos, totalCount);
+        }
+
+        // ✅ MÉTODOS EXISTENTES (mantidos)
         public async Task<List<Moto>> GetAllAsync()
         {
             return await _context.Motos
@@ -62,7 +116,6 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string placa)
         {
-            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
             try
             {
                 var sql = "SELECT COUNT(*) FROM \"Motos\" WHERE \"Placa\" = :p0";

@@ -14,6 +14,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuração da URL - usando apenas uma porta para evitar conflitos
 builder.WebHost.UseUrls("http://localhost:5147");
 builder.Environment.EnvironmentName = "Development";
 
@@ -246,9 +247,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Mottu API v1 (Estável)");
-        
         c.SwaggerEndpoint("/swagger/v2/swagger.json", "Mottu API v2 (Nova)");
-        
         c.RoutePrefix = "swagger";
         c.DocumentTitle = "Mottu API Documentation";
         c.DisplayOperationId();
@@ -258,15 +257,116 @@ if (app.Environment.IsDevelopment())
         c.ShowExtensions();
         c.DefaultModelsExpandDepth(2);
         c.DefaultModelExpandDepth(2);
-        
-        c.InjectStylesheet("/swagger-ui/custom.css");
     });
-
-    app.UseStaticFiles();
 }
 
 app.UseExceptionHandler("/error");
-app.UseHsts();
+
+// ✅ CORREÇÃO: Adicionar endpoint raiz com página HTML
+app.MapGet("/", () => Results.Content("""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mottu API - Sistema de Gerenciamento de Pátio de Motos</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: white; 
+            text-align: center; 
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .card { 
+            background: rgba(255,255,255,0.2); 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 10px; 
+            border-left: 5px solid #4CAF50;
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background: #4CAF50; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        .btn:hover { 
+            background: #45a049; 
+        }
+        .links { 
+            text-align: center; 
+            margin-top: 30px;
+        }
+        .feature { 
+            margin: 10px 0; 
+            padding: 10px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1> Mottu API</h1>
+        <p style="text-align: center; font-size: 1.2em;">Sistema de Gerenciamento de Pátio de Motos</p>
+        
+        <div class="card">
+            <h2> Documentação</h2>
+            <p>Acesse a documentação interativa da API para explorar todos os endpoints disponíveis.</p>
+            <div class="links">
+                <a href="/swagger" class="btn">Swagger UI</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2> Recursos da API</h2>
+            <div class="feature"><strong>Versão 1 (Estável):</strong> CRUD completo, Autenticação JWT</div>
+            <div class="feature"><strong>Versão 2 (Avançada):</strong> ML.NET, Paginação, Estatísticas</div>
+            <div class="feature"><strong>Health Checks:</strong> Monitoramento do sistema</div>
+            <div class="feature"><strong>HATEOAS:</strong> Navegação por links</div>
+        </div>
+
+        <div class="card">
+            <h2> Links Úteis</h2>
+            <div class="links">
+                <a href="/api" class="btn">API Info</a>
+                <a href="/health" class="btn">Health Check</a>
+                <a href="/swagger" class="btn">Documentação</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2> Credenciais de Teste</h2>
+            <p><strong>Admin:</strong> usuario=admin_principal, senha=Admin123!</p>
+            <p><strong>Funcionário:</strong> usuario=funcionario_teste, senha=Func123!</p>
+        </div>
+    </div>
+</body>
+</html>
+""", "text/html")).WithTags("Home");
+
+app.MapGet("/index.html", () => Results.Redirect("/")).WithTags("Home");
 
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -289,7 +389,6 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     }
 });
 
-app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseRouting();
 app.UseAuthentication();
@@ -297,29 +396,36 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Use(async (context, next) =>
+app.MapGet("/api", () => new
 {
-    if (context.Request.Path.StartsWithSegments("/swagger-ui/custom.css"))
-    {
-        context.Response.ContentType = "text/css";
-        await context.Response.WriteAsync(@"
-            .swagger-ui .topbar { display: none; }
-            .swagger-ui .info h2 { color: #2c5aa0; }
-            .swagger-ui .btn.authorize { background-color: #2c5aa0; }
-            .version-stable { border-left: 4px solid #28a745; padding-left: 10px; }
-            .version-new { border-left: 4px solid #ffc107; padding-left: 10px; }
-        ");
-        return;
-    }
-    await next();
-});
+    message = "Bem-vindo à Mottu API - Sistema de Gerenciamento de Pátio de Motos",
+    documentation = "/swagger",
+    health = "/health",
+    home = "/",
+    versions = new[] { 
+        new { version = "v1", description = "API Estável - Endpoints básicos" },
+        new { version = "v2", description = "Nova Versão - Recursos avançados com ML.NET" }
+    },
+    features = new[] {
+        "JWT Authentication",
+        "ML.NET Integration", 
+        "Health Checks",
+        "API Versioning",
+        "HATEOAS Links",
+        "Pagination",
+        "Swagger Documentation"
+    },
+    timestamp = DateTime.Now
+}).WithTags("API Info");
 
 Console.WriteLine("==============================================");
 Console.WriteLine("MOTTU API INICIADA COM SUCESSO!");
 Console.WriteLine("==============================================");
 Console.WriteLine($"URL Principal: http://localhost:5147");
+Console.WriteLine($"Página HTML: http://localhost:5147/index.html");
 Console.WriteLine($"Swagger: http://localhost:5147/swagger");
 Console.WriteLine($"Health Check: http://localhost:5147/health");
+Console.WriteLine($"API Info: http://localhost:5147/api");
 Console.WriteLine("==============================================");
 Console.WriteLine("CREDENCIAIS PARA TESTE:");
 Console.WriteLine("Admin: usuario=admin_principal, senha=Admin123!");

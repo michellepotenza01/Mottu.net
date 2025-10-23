@@ -12,7 +12,36 @@ namespace MottuApi.Repositories
         {
             _context = context;
         }
+        public async Task<(List<Patio> Patios, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Patios
+                .AsNoTracking();
 
+            var totalCount = await query.CountAsync();
+            var patios = await query
+                .OrderBy(p => p.NomePatio)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (patios, totalCount);
+        }
+
+        public async Task<(List<Patio> Patios, int TotalCount)> GetPatiosComVagasDisponiveisPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Patios
+                .Where(p => p.VagasTotais - p.VagasOcupadas > 0)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var patios = await query
+                .OrderBy(p => p.NomePatio)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (patios, totalCount);
+        }
         public async Task<List<Patio>> GetAllAsync()
         {
             return await _context.Patios

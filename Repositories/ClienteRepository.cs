@@ -13,7 +13,23 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        // ✅ TODOS OS MÉTODOS NORMAIS COM LINQ
+        public async Task<(List<Cliente> Clientes, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Clientes
+                .Include(c => c.Moto)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var clientes = await query
+                .OrderBy(c => c.UsuarioCliente)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (clientes, totalCount);
+        }
+
+        // ✅ MÉTODOS EXISTENTES (mantidos)
         public async Task<List<Cliente>> GetAllAsync()
         {
             return await _context.Clientes
@@ -49,7 +65,6 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string usuarioCliente)
         {
-            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
             try
             {
                 var sql = "SELECT COUNT(*) FROM \"Clientes\" WHERE \"UsuarioCliente\" = :p0";

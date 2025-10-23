@@ -20,6 +20,34 @@ namespace MottuApi.Services
             _authService = authService;
         }
 
+        public async Task<ServiceResponse<PagedResponse<Funcionario>>> GetFuncionariosPagedAsync(PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _funcionarioRepository.GetAllPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Funcionario>(result.Funcionarios, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Funcionario>>.Ok(pagedResponse, "Funcionários recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Funcionario>>.Error($"Erro ao buscar funcionários: {ex.Message}");
+            }
+        }
+
+        public async Task<ServiceResponse<PagedResponse<Funcionario>>> GetFuncionariosPorPatioPagedAsync(string nomePatio, PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _funcionarioRepository.GetByPatioPagedAsync(nomePatio, paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Funcionario>(result.Funcionarios, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Funcionario>>.Ok(pagedResponse, $"Funcionários do pátio {nomePatio} recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Funcionario>>.Error($"Erro ao buscar funcionários do pátio: {ex.Message}");
+            }
+        }
+
         public async Task<ServiceResponse<List<Funcionario>>> GetFuncionariosAsync()
         {
             try

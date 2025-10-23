@@ -9,90 +9,98 @@ namespace MottuApi.Services
     public class MotoPredictionService
     {
         private readonly MLContext _mlContext;
-        private readonly ITransformer _model;
+        private ITransformer? _model;
         private readonly ILogger<MotoPredictionService> _logger;
+        private bool _modelTrained = false;
 
         public MotoPredictionService(ILogger<MotoPredictionService> logger)
         {
             _logger = logger;
             _mlContext = new MLContext(seed: 0);
             
-            _logger.LogInformation("Inicializando modelo ML.NET...");
+            InitializeModel();
+        }
 
+        private void InitializeModel()
+        {
             try
             {
+                _logger.LogInformation("Inicializando modelo ML.NET...");
+
                 var trainingData = new[]
                 {
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 5000, 
-                        QuantidadeRevisoes = 2, 
-                        DiasDesdeUltimaRevisao = 30, 
-                        SetorEncoded = 0, 
+                        Quilometragem = 5000f, 
+                        QuantidadeRevisoes = 2f, 
+                        DiasDesdeUltimaRevisao = 30f, 
+                        SetorEncoded = 0f, 
                         PrecisaManutencao = false 
                     },
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 15000, 
-                        QuantidadeRevisoes = 1, 
-                        DiasDesdeUltimaRevisao = 180, 
-                        SetorEncoded = 0, 
+                        Quilometragem = 15000f, 
+                        QuantidadeRevisoes = 1f, 
+                        DiasDesdeUltimaRevisao = 180f, 
+                        SetorEncoded = 0f, 
                         PrecisaManutencao = true 
                     },
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 8000, 
-                        QuantidadeRevisoes = 3, 
-                        DiasDesdeUltimaRevisao = 60, 
-                        SetorEncoded = 1, 
+                        Quilometragem = 8000f, 
+                        QuantidadeRevisoes = 3f, 
+                        DiasDesdeUltimaRevisao = 60f, 
+                        SetorEncoded = 1f, 
                         PrecisaManutencao = false 
                     },
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 20000, 
-                        QuantidadeRevisoes = 0, 
-                        DiasDesdeUltimaRevisao = 365, 
-                        SetorEncoded = 2, 
+                        Quilometragem = 20000f, 
+                        QuantidadeRevisoes = 0f, 
+                        DiasDesdeUltimaRevisao = 365f, 
+                        SetorEncoded = 2f, 
                         PrecisaManutencao = true 
                     },
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 3000, 
-                        QuantidadeRevisoes = 1, 
-                        DiasDesdeUltimaRevisao = 90, 
-                        SetorEncoded = 0, 
+                        Quilometragem = 3000f, 
+                        QuantidadeRevisoes = 1f, 
+                        DiasDesdeUltimaRevisao = 90f, 
+                        SetorEncoded = 0f, 
                         PrecisaManutencao = false 
                     },
                     new MotoManutencaoInput 
                     { 
-                        Quilometragem = 12000, 
-                        QuantidadeRevisoes = 2, 
-                        DiasDesdeUltimaRevisao = 120, 
-                        SetorEncoded = 1, 
+                        Quilometragem = 12000f, 
+                        QuantidadeRevisoes = 2f, 
+                        DiasDesdeUltimaRevisao = 120f, 
+                        SetorEncoded = 1f, 
                         PrecisaManutencao = true 
                     }
                 };
 
                 var dataView = _mlContext.Data.LoadFromEnumerable(trainingData);
 
-                // ✅ CORREÇÃO: Pipeline com nomes EXATOS das propriedades
-                var pipeline = _mlContext.Transforms.Concatenate("Features", 
-                        nameof(MotoManutencaoInput.Quilometragem),
-                        nameof(MotoManutencaoInput.QuantidadeRevisoes), 
-                        nameof(MotoManutencaoInput.DiasDesdeUltimaRevisao),
-                        nameof(MotoManutencaoInput.SetorEncoded))
+                var pipeline = _mlContext.Transforms.Concatenate(
+                    "Features", 
+                    nameof(MotoManutencaoInput.Quilometragem),
+                    nameof(MotoManutencaoInput.QuantidadeRevisoes), 
+                    nameof(MotoManutencaoInput.DiasDesdeUltimaRevisao),
+                    nameof(MotoManutencaoInput.SetorEncoded))
                     .Append(_mlContext.Transforms.NormalizeMinMax("Features"))
                     .Append(_mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(
                         labelColumnName: nameof(MotoManutencaoInput.PrecisaManutencao),
                         featureColumnName: "Features"));
 
                 _model = pipeline.Fit(dataView);
+                _modelTrained = true;
+
                 _logger.LogInformation("Modelo ML.NET treinado e inicializado com sucesso");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao treinar modelo ML.NET. Usando fallback.");
-                _model = null; // Modelo vazio - usará fallback
+                _modelTrained = false;
             }
         }
 
@@ -105,8 +113,7 @@ namespace MottuApi.Services
             {
                 _logger.LogDebug("Iniciando predição ML para moto {Placa}", moto.Placa);
                 
-                // Se o modelo não foi treinado, usa fallback
-                if (_model == null)
+                if (!_modelTrained || _model == null)
                 {
                     _logger.LogWarning("Modelo ML não disponível. Usando fallback.");
                     return CreateFallbackPrediction(moto);
@@ -131,22 +138,22 @@ namespace MottuApi.Services
         private MotoManutencaoInput CreateInputFromMoto(Moto moto)
         {
             var diasDesdeRevisao = moto.DataUltimaRevisao.HasValue 
-                ? (DateTime.Now - moto.DataUltimaRevisao.Value).Days 
-                : 365;
+                ? (float)(DateTime.Now - moto.DataUltimaRevisao.Value).Days 
+                : 365f;
 
             var setorEncoded = moto.Setor switch
             {
-                SetorMoto.Bom => 0,
-                SetorMoto.Intermediario => 1,
-                SetorMoto.Ruim => 2,
-                _ => 0
+                SetorMoto.Bom => 0f,
+                SetorMoto.Intermediario => 1f,
+                SetorMoto.Ruim => 2f,
+                _ => 0f
             };
 
             return new MotoManutencaoInput
             {
                 Placa = moto.Placa,
-                Quilometragem = moto.Quilometragem,
-                QuantidadeRevisoes = moto.QuantidadeRevisoes,
+                Quilometragem = (float)moto.Quilometragem,
+                QuantidadeRevisoes = (float)moto.QuantidadeRevisoes,
                 DiasDesdeUltimaRevisao = diasDesdeRevisao,
                 SetorEncoded = setorEncoded
             };

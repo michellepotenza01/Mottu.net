@@ -47,6 +47,20 @@ namespace MottuApi.Controllers
             return HandleServiceResponse(response);
         }
 
+        [HttpGet("paged")]
+        [AllowAnonymous]
+        [MapToApiVersion("2.0")]
+        [SwaggerOperation(Summary = "Listar funcionários paginados", Description = "Retorna funcionários com paginação - Versão 2", OperationId = "GetFuncionariosPagedV2")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Funcionario>))]
+        public async Task<ActionResult<PagedResponse<Funcionario>>> GetFuncionariosPagedV2([FromQuery] PaginationParams paginationParams)
+        {
+            var response = await _funcionarioService.GetFuncionariosPagedAsync(paginationParams);
+            if (!response.Success || response.Data == null)
+                return HandleServiceResponse(response);
+
+            return HandlePagedResponse(response.Data.Data, response.Data.Page, response.Data.PageSize, response.Data.TotalCount, response.Data.Message);
+        }
+
         /// <summary>
         /// Obter funcionário específico
         /// </summary>
@@ -216,7 +230,7 @@ namespace MottuApi.Controllers
             [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
         {
             var response = await _funcionarioService.GetFuncionariosPorPatioAsync(nomePatio);
-            
+
             if (!response.Success || response.Data == null || !response.Data.Any())
                 return NoContent();
 
@@ -228,6 +242,22 @@ namespace MottuApi.Controllers
                 Timestamp = DateTime.Now,
                 Version = "2.0"
             });
+        }
+        
+        [HttpGet("patio/{nomePatio}/paged")]
+        [MapToApiVersion("2.0")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Listar funcionários por pátio paginados", Description = "Retorna funcionários de um pátio com paginação - Versão 2", OperationId = "GetFuncionariosPorPatioPagedV2")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Funcionario>))]
+        public async Task<ActionResult<PagedResponse<Funcionario>>> GetFuncionariosPorPatioPagedV2(
+            [FromRoute] string nomePatio, 
+            [FromQuery] PaginationParams paginationParams)
+        {
+            var response = await _funcionarioService.GetFuncionariosPorPatioPagedAsync(nomePatio, paginationParams);
+            if (!response.Success || response.Data == null)
+                return HandleServiceResponse(response);
+
+            return HandlePagedResponse(response.Data.Data, response.Data.Page, response.Data.PageSize, response.Data.TotalCount, response.Data.Message);
         }
 
         /// <summary>

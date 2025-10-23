@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using MottuApi.Models.Common;
-using Swashbuckle.AspNetCore.Annotations;
 using MottuApi.Services;
 
 namespace MottuApi.Controllers
@@ -17,30 +16,40 @@ namespace MottuApi.Controllers
         {
             if (!response.Success)
             {
-                var errorResponse = new ErrorResponse 
-                { 
-                    Message = response.Message,
-                    Path = $"{Request.Method} {Request.Path}",
-                    Timestamp = DateTime.Now
-                };
-                return BadRequest(errorResponse);
+                return BadRequest(CreateErrorResponse(response.Message));
             }
 
             if (response.Data == null)
-                return NotFound(new ErrorResponse 
-                { 
-                    Message = "Recurso não encontrado",
-                    Path = $"{Request.Method} {Request.Path}",
-                    Timestamp = DateTime.Now
-                });
+                return NotFound(CreateErrorResponse("Recurso não encontrado"));
 
             if (response.Data is System.Collections.IEnumerable enumerable && !enumerable.GetEnumerator().MoveNext())
                 return NoContent();
 
             return Ok(new
             {
-                response.Data,
-                response.Message,
+                Data = response.Data,
+                Message = response.Message,
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
+        }
+
+        protected ActionResult HandlePagedResponse<T>(List<T> data, int page, int pageSize, int totalCount, string message = "Dados recuperados com sucesso")
+        {
+            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.Path}";
+            var links = CreatePaginationLinks(baseUrl, page, pageSize, totalCount);
+            
+            var pagedResponse = new PagedResponse<T>(data, page, pageSize, totalCount, links, message);
+
+            return Ok(new
+            {
+                pagedResponse.Data,
+                pagedResponse.Page,
+                pagedResponse.PageSize,
+                pagedResponse.TotalCount,
+                pagedResponse.TotalPages,
+                pagedResponse.Links,
+                Message = pagedResponse.Message,
                 Timestamp = DateTime.Now,
                 Version = RequestedApiVersion
             });
@@ -48,19 +57,38 @@ namespace MottuApi.Controllers
 
         protected ActionResult HandleCreatedResponse<T>(string actionName, object routeValues, T data, string message = "Recurso criado com sucesso")
         {
+            var links = new List<Link>
+            {
+                new Link("self", Url.Action(actionName, routeValues) ?? "", "GET"),
+                new Link("update", Url.Action("Update", routeValues) ?? "", "PUT"),
+                new Link("delete", Url.Action("Delete", routeValues) ?? "", "DELETE")
+            };
+
             return CreatedAtAction(actionName, routeValues, new
             {
                 Data = data,
                 Message = message,
+                Links = links,
                 Timestamp = DateTime.Now,
-                Version = RequestedApiVersion,
-                Links = new[]
-                {
-                    new { Rel = "self", Href = Url.Action(actionName, routeValues), Method = "GET" },
-                    new { Rel = "update", Href = Url.Action("Update", routeValues), Method = "PUT" },
-                    new { Rel = "delete", Href = Url.Action("Delete", routeValues), Method = "DELETE" }
-                }
+                Version = RequestedApiVersion
             });
+        }
+
+        private List<Link> CreatePaginationLinks(string baseUrl, int page, int pageSize, int totalCount)
+        {
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            var links = new List<Link>
+            {
+                new Link("self", $"{baseUrl}?pageNumber={page}&pageSize={pageSize}", "GET")
+            };
+            
+            if (page > 1)
+                links.Add(new Link("prev", $"{baseUrl}?pageNumber={page - 1}&pageSize={pageSize}", "GET"));
+            
+            if (page < totalPages)
+                links.Add(new Link("next", $"{baseUrl}?pageNumber={page + 1}&pageSize={pageSize}", "GET"));
+
+            return links;
         }
 
         protected ErrorResponse CreateErrorResponse(string message, List<string>? errors = null)

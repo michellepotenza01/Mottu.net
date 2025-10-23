@@ -3,6 +3,7 @@ using MottuApi.DTOs;
 using MottuApi.Repositories;
 using MottuApi.Models.ML;
 using MottuApi.Enums;
+using MottuApi.Models.Common;
 
 namespace MottuApi.Services
 {
@@ -22,25 +23,67 @@ namespace MottuApi.Services
             _predictionService = predictionService;
         }
 
+        public async Task<ServiceResponse<PagedResponse<Moto>>> GetMotosPagedAsync(PaginationParams paginationParams, StatusMoto? status = null, SetorMoto? setor = null)
+        {
+            try
+            {
+                List<Moto> motos;
+                int totalCount;
+
+                if (status.HasValue)
+                {
+                    var result = await _motoRepository.GetByStatusPagedAsync(status.Value, paginationParams.PageNumber, paginationParams.PageSize);
+                    motos = result.Motos;
+                    totalCount = result.TotalCount;
+                }
+                else
+                {
+                    var result = await _motoRepository.GetAllPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+                    motos = result.Motos;
+                    totalCount = result.TotalCount;
+                }
+
+                if (setor.HasValue)
+                {
+                    motos = motos.Where(m => m.Setor == setor.Value).ToList();
+                    totalCount = motos.Count;
+                }
+
+                var pagedResponse = new PagedResponse<Moto>(motos, paginationParams.PageNumber, paginationParams.PageSize, totalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Moto>>.Ok(pagedResponse, "Motos recuperadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Moto>>.Error($"Erro ao buscar motos: {ex.Message}");
+            }
+        }
+
+        public async Task<ServiceResponse<PagedResponse<Moto>>> GetMotosPorPatioPagedAsync(string nomePatio, PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _motoRepository.GetByPatioPagedAsync(nomePatio, paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Moto>(result.Motos, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Moto>>.Ok(pagedResponse, $"Motos do pátio {nomePatio} recuperadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Moto>>.Error($"Erro ao buscar motos do pátio: {ex.Message}");
+            }
+        }
+
         public async Task<ServiceResponse<List<Moto>>> GetMotosAsync(StatusMoto? status = null, SetorMoto? setor = null)
         {
             try
             {
                 List<Moto> motos;
 
-                if (status.HasValue && setor.HasValue)
-                    motos = await _motoRepository.GetAllAsync();
-                else if (status.HasValue)
+                if (status.HasValue)
                     motos = await _motoRepository.GetByStatusAsync(status.Value);
-                else if (setor.HasValue)
-                    motos = await _motoRepository.GetAllAsync(); // Filtro em memória
                 else
                     motos = await _motoRepository.GetAllAsync();
 
-                // Filtros combinados em memória
-                if (status.HasValue && setor.HasValue)
-                    motos = motos.Where(m => m.Status == status.Value && m.Setor == setor.Value).ToList();
-                else if (setor.HasValue)
+                if (setor.HasValue)
                     motos = motos.Where(m => m.Setor == setor.Value).ToList();
 
                 return ServiceResponse<List<Moto>>.Ok(motos, "Motos recuperadas com sucesso");

@@ -13,7 +13,37 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
-        // ✅ TODOS OS MÉTODOS NORMAIS COM LINQ
+        public async Task<(List<Funcionario> Funcionarios, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Funcionarios
+                .Include(f => f.Patio)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var funcionarios = await query
+                .OrderBy(f => f.UsuarioFuncionario)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (funcionarios, totalCount);
+        }
+         public async Task<(List<Funcionario> Funcionarios, int TotalCount)> GetByPatioPagedAsync(string nomePatio, int pageNumber, int pageSize)
+        {
+            var query = _context.Funcionarios
+                .Where(f => f.NomePatio == nomePatio)
+                .Include(f => f.Patio)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+            var funcionarios = await query
+                .OrderBy(f => f.UsuarioFuncionario)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (funcionarios, totalCount);
+        }
         public async Task<List<Funcionario>> GetAllAsync()
         {
             return await _context.Funcionarios
@@ -49,7 +79,6 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string usuarioFuncionario)
         {
-            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
             try
             {
                 var sql = "SELECT COUNT(*) FROM \"Funcionarios\" WHERE \"UsuarioFuncionario\" = :p0";
@@ -80,7 +109,6 @@ namespace MottuApi.Repositories
 
         public async Task<bool> PertenceAoPatioAsync(string usuarioFuncionario, string nomePatio)
         {
-            // ✅ AQUI PODE SER LINQ NORMAL (não gera TRUE/FALSE)
             return await _context.Funcionarios
                 .AnyAsync(f => f.UsuarioFuncionario == usuarioFuncionario && f.NomePatio == nomePatio);
         }

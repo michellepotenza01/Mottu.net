@@ -40,6 +40,7 @@ namespace MottuApi.Controllers
         /// <returns>Lista de motos</returns>
         [HttpGet]
         [AllowAnonymous]
+        [MapToApiVersion("1.0")]
         [SwaggerOperation(
             Summary = "Listar motos",
             Description = "Retorna todas as motos cadastradas",
@@ -53,6 +54,23 @@ namespace MottuApi.Controllers
         {
             var response = await _motoService.GetMotosAsync(status, setor);
             return HandleServiceResponse(response);
+        }
+
+        [HttpGet("paged")]
+        [AllowAnonymous]
+        [MapToApiVersion("2.0")]
+        [SwaggerOperation(Summary = "Listar motos paginadas", Description = "Retorna motos com paginação - Versão 2", OperationId = "GetMotosPagedV2")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Moto>))]
+        public async Task<ActionResult<PagedResponse<Moto>>> GetMotosPagedV2(
+            [FromQuery] PaginationParams paginationParams, 
+            [FromQuery] StatusMoto? status = null, 
+            [FromQuery] SetorMoto? setor = null)
+        {
+            var response = await _motoService.GetMotosPagedAsync(paginationParams, status, setor);
+            if (!response.Success || response.Data == null)
+                return HandleServiceResponse(response);
+
+            return HandlePagedResponse(response.Data.Data, response.Data.Page, response.Data.PageSize, response.Data.TotalCount, response.Data.Message);
         }
 
         /// <summary>

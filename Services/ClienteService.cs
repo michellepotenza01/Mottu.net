@@ -18,6 +18,20 @@ namespace MottuApi.Services
             _authService = authService;
         }
 
+        public async Task<ServiceResponse<PagedResponse<Cliente>>> GetClientesPagedAsync(PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _clienteRepository.GetAllPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Cliente>(result.Clientes, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Cliente>>.Ok(pagedResponse, "Clientes recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Cliente>>.Error($"Erro ao buscar clientes: {ex.Message}");
+            }
+        }
+
         public async Task<ServiceResponse<List<Cliente>>> GetClientesAsync()
         {
             try

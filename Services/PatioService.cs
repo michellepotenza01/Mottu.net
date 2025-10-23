@@ -18,6 +18,34 @@ namespace MottuApi.Services
             _funcionarioRepository = funcionarioRepository;
         }
 
+         public async Task<ServiceResponse<PagedResponse<Patio>>> GetPatiosPagedAsync(PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _patioRepository.GetAllPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Patio>(result.Patios, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Patio>>.Ok(pagedResponse, "Pátios recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Patio>>.Error($"Erro ao buscar pátios: {ex.Message}");
+            }
+        }
+
+        public async Task<ServiceResponse<PagedResponse<Patio>>> GetPatiosComVagasDisponiveisPagedAsync(PaginationParams paginationParams)
+        {
+            try
+            {
+                var result = await _patioRepository.GetPatiosComVagasDisponiveisPagedAsync(paginationParams.PageNumber, paginationParams.PageSize);
+                var pagedResponse = new PagedResponse<Patio>(result.Patios, paginationParams.PageNumber, paginationParams.PageSize, result.TotalCount, new List<Link>());
+                return ServiceResponse<PagedResponse<Patio>>.Ok(pagedResponse, "Pátios com vagas disponíveis recuperados");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<PagedResponse<Patio>>.Error($"Erro ao buscar pátios com vagas: {ex.Message}");
+            }
+        }
+
         public async Task<ServiceResponse<List<Patio>>> GetPatiosAsync()
         {
             try

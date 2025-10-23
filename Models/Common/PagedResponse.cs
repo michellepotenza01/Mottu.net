@@ -3,14 +3,33 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace MottuApi.Models.Common
 {
-    [SwaggerSchema("Resposta paginada para listagens")]
+    [SwaggerSchema("Parâmetros de paginação para endpoints de listagem")]
+    public class PaginationParams
+    {
+        private const int MaxPageSize = 100;
+        private int _pageSize = 10;
+
+        [SwaggerSchema("Número da página (base 1)")]
+        [JsonPropertyName("pageNumber")]
+        public int PageNumber { get; set; } = 1;
+        
+        [SwaggerSchema("Quantidade de itens por página (máximo 100)")]
+        [JsonPropertyName("pageSize")]
+        public int PageSize
+        {
+            get => _pageSize;
+            set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
+        }
+    }
+
+    [SwaggerSchema("Resposta paginada com links HATEOAS")]
     public class PagedResponse<T>
     {
         [SwaggerSchema("Dados da página atual")]
         [JsonPropertyName("data")]
         public List<T> Data { get; set; } = new List<T>();
 
-        [SwaggerSchema("Número da página atual (base 1)")]
+        [SwaggerSchema("Número da página atual")]
         [JsonPropertyName("page")]
         public int Page { get; set; }
 
@@ -48,27 +67,27 @@ namespace MottuApi.Models.Common
         }
     }
 
-    [SwaggerSchema("Link HATEOAS para navegação na API")]
+    [SwaggerSchema("Link HATEOAS")]
     public class Link
     {
-        [SwaggerSchema("Relação do link (self, next, prev, create, etc)")]
-        [JsonPropertyName("rel")]
-        public string Rel { get; set; } = string.Empty;
-
-        [SwaggerSchema("URL do recurso")]
+        [SwaggerSchema("URI do recurso")]
         [JsonPropertyName("href")]
         public string Href { get; set; } = string.Empty;
 
-        [SwaggerSchema("Método HTTP permitido")]
+        [SwaggerSchema("Relação do link (self, next, prev, ...)")]
+        [JsonPropertyName("rel")]
+        public string Rel { get; set; } = string.Empty;
+
+        [SwaggerSchema("Método HTTP")]
         [JsonPropertyName("method")]
-        public string Method { get; set; } = string.Empty;
+        public string Method { get; set; } = "GET";
 
         public Link() { }
 
-        public Link(string rel, string href, string method)
+        public Link(string href, string rel, string method = "GET")
         {
-            Rel = rel;
             Href = href;
+            Rel = rel;
             Method = method;
         }
     }
