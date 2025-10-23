@@ -1,10 +1,7 @@
 using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MottuApi3.Enums;
+using MottuApi.Enums;
 
 namespace MottuApi.Repositories
 {
@@ -17,25 +14,27 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
+        // ✅ TODOS OS MÉTODOS NORMAS COM LINQ
         public async Task<List<Moto>> GetAllAsync()
         {
             return await _context.Motos
                 .Include(m => m.Patio)
                 .Include(m => m.Funcionario)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<List<Moto>> GetPaginatedAsync(int page, int pageSize)
+        public async Task<List<Moto>> GetByFuncionarioAsync(string usuarioFuncionario)
         {
             return await _context.Motos
+                .Where(m => m.UsuarioFuncionario == usuarioFuncionario)
                 .Include(m => m.Patio)
                 .Include(m => m.Funcionario)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<Moto> GetByIdAsync(string placa)
+        public async Task<Moto?> GetByIdAsync(string placa)
         {
             return await _context.Motos
                 .Include(m => m.Patio)
@@ -63,27 +62,60 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string placa)
         {
-            return await _context.Motos.AnyAsync(m => m.Placa == placa);
+            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
+            try
+            {
+                var sql = "SELECT COUNT(*) FROM \"Motos\" WHERE \"Placa\" = :p0";
+                var count = await _context.Database.SqlQueryRaw<int>(sql, placa).FirstOrDefaultAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<List<Moto>> GetByPatioAsync(string nomePatio)
         {
             return await _context.Motos
                 .Where(m => m.NomePatio == nomePatio)
-                .Include(m => m.Patio)        
-                .Include(m => m.Funcionario)  
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<int> GetTotalCountAsync()
-        {
-            return await _context.Motos.CountAsync();
-        }
-
-        public async Task<int> CountByStatusAndPatioAsync(StatusMoto status, string nomePatio)
+        public async Task<List<Moto>> GetByStatusAsync(StatusMoto status)
         {
             return await _context.Motos
-                .CountAsync(m => m.Status == status && m.NomePatio == nomePatio);
+                .Where(m => m.Status == status)
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<Moto>> GetMotosPrecisandoManutencaoAsync()
+        {
+            return await _context.Motos
+                .Where(m => m.PrecisaManutencao == 1)
+                .Include(m => m.Patio)
+                .Include(m => m.Funcionario)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<bool> AtualizarStatusManutencaoAsync(string placa, bool precisaManutencao, float probabilidade)
+        {
+            var moto = await GetByIdAsync(placa);
+            if (moto is null) return false;
+
+            moto.PrecisaManutencao = precisaManutencao ? 1 : 0;
+            moto.ProbabilidadeManutencao = probabilidade;
+            moto.DataAtualizacao = DateTime.Now;
+            
+            await UpdateAsync(moto);
+            return true;
         }
     }
 }

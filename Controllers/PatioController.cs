@@ -1,22 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Services;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Swashbuckle.AspNetCore.Filters; 
-using MottuApi.Examples;
-
 
 namespace MottuApi.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
-    [Tags("Patios")]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
+    [Tags("Pátios")]
     [Produces("application/json")]
-    public class PatioController : ControllerBase
+    [Consumes("application/json")]
+    public class PatioController : BaseController
     {
         private readonly PatioService _patioService;
 
@@ -26,286 +24,288 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todos os patios com paginacao.
+        /// Listar todos os pátios
         /// </summary>
-        /// <param name="page">Número da pagina (padrão: 1)</param>
-        /// <param name="pageSize">Itens por pagina (padrão: 10, maximo: 50)</param>
+        /// <remarks>
+        /// Retorna todos os pátios cadastrados no sistema.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <returns>Lista de pátios</returns>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todos os patios com paginacao")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Patio>))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar pátios",
+            Description = "Retorna todos os pátios cadastrados",
+            OperationId = "GetPatios"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Patio>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetPatios(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<List<Patio>>> GetPatios()
         {
-            if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
-
-            if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
-
-            var patiosResponse = await _patioService.GetPatiosPaginatedAsync(page, pageSize);
-            var totalCountResponse = await _patioService.GetTotalPatiosCountAsync();
-
-            if (!patiosResponse.Success || !totalCountResponse.Success)
-                return BadRequest(new ErrorResponse { Message = patiosResponse.Message });
-
-            if (patiosResponse.Data == null || !patiosResponse.Data.Any())
-                return NoContent();
-
-            var totalCount = totalCountResponse.Data;
-            var totalPages = (int)System.Math.Ceiling(totalCount / (double)pageSize);
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-            var links = new List<Link>
-            {
-                new Link { Rel = "self", Href = $"{baseUrl}/api/patio?page={page}&pageSize={pageSize}", Method = "GET" },
-                new Link { Rel = "create", Href = $"{baseUrl}/api/patio", Method = "POST" }
-            };
-
-            if (page > 1)
-                links.Add(new Link { Rel = "prev", Href = $"{baseUrl}/api/patio?page={page - 1}&pageSize={pageSize}", Method = "GET" });
-
-            if (page < totalPages)
-                links.Add(new Link { Rel = "next", Href = $"{baseUrl}/api/patio?page={page + 1}&pageSize={pageSize}", Method = "GET" });
-
-            var response = new PagedResponse<Patio>
-            {
-                Data = patiosResponse.Data,
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = links
-            };
-
-            return Ok(response);
+            var response = await _patioService.GetPatiosAsync();
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Retorna um patio especifico pelo nome.
+        /// Obter pátio específico
         /// </summary>
-        /// <param name="nomePatio">Nome do patio</param>
+        /// <remarks>
+        /// Retorna os detalhes de um pátio específico pelo nome.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Detalhes do pátio</returns>
         [HttpGet("{nomePatio}")]
-        [SwaggerOperation(Summary = "Obter patio por nome")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PatioResponse))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Obter pátio",
+            Description = "Retorna detalhes de um pátio específico",
+            OperationId = "GetPatio"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Patio))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetPatioByName([FromRoute] string nomePatio)
+        public async Task<ActionResult<Patio>> GetPatio(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
         {
-            if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
-
             var response = await _patioService.GetPatioAsync(nomePatio);
-
-            if (!response.Success || response.Data == null)
-                return NotFound(new ErrorResponse { Message = response.Message });
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var patioResponse = new PatioResponse
-            {
-                NomePatio = response.Data.NomePatio,
-                Localizacao = response.Data.Localizacao,
-                VagasTotais = response.Data.VagasTotais,
-                VagasOcupadas = response.Data.VagasOcupadas,
-                VagasDisponiveis = response.Data.VagasDisponiveis,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/patio/{nomePatio}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/patio/{nomePatio}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/patio/{nomePatio}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/patio", Method = "GET" },
-                    new Link { Rel = "vagas", Href = $"{baseUrl}/api/patio/{nomePatio}/vagas", Method = "GET" }
-                }
-            };
-
-            return Ok(patioResponse);
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Cria um novo patio no sistema.
+        ///  Criar novo pátio
         /// </summary>
+        /// <remarks>
+        /// Cria um novo pátio no sistema.
+        /// 
+        /// **Roles:** Admin
+        /// </remarks>
+        /// <param name="patioDto">Dados do novo pátio</param>
+        /// <returns>Pátio criado</returns>
         [HttpPost]
-        [SwaggerRequestExample(typeof(PatioDto), typeof(PatioExample))]
-        [SwaggerOperation(Summary = "Criar novo patio")]
-        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(PatioResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Criar pátio",
+            Description = "Cadastra um novo pátio no sistema",
+            OperationId = "CreatePatio"
+        )]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Patio))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> CreatePatio([FromBody] PatioDto patioDto)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<Patio>> CreatePatio(
+            [FromBody, SwaggerRequestBody("Dados do pátio", Required = true)] PatioDto patioDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+                return BadRequest(CreateErrorResponse("Dados do pátio inválidos"));
 
             var response = await _patioService.CreatePatioAsync(patioDto);
 
             if (!response.Success)
-                return BadRequest(new ErrorResponse { Message = response.Message });
+                return BadRequest(CreateErrorResponse(response.Message));
 
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var patioResponse = new PatioResponse
-            {
-                NomePatio = response.Data.NomePatio,
-                Localizacao = response.Data.Localizacao,
-                VagasTotais = response.Data.VagasTotais,
-                VagasOcupadas = response.Data.VagasOcupadas,
-                VagasDisponiveis = response.Data.VagasDisponiveis,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/patio", Method = "GET" },
-                    new Link { Rel = "vagas", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}/vagas", Method = "GET" }
-                }
-            };
-
-            return CreatedAtAction(
-                nameof(GetPatioByName),
-                new { nomePatio = response.Data.NomePatio },
-                patioResponse
+            return HandleCreatedResponse(
+                nameof(GetPatio),
+                new { nomePatio = response.Data!.NomePatio, version = RequestedApiVersion },
+                response.Data,
+                "Pátio criado com sucesso"
             );
         }
 
         /// <summary>
-        /// Atualiza um patio existente.
+        /// Atualizar pátio
         /// </summary>
-        /// <param name="nomePatio">Nome do patio a ser atualizado</param>
-        /// <param name="patioDto">Dados atualizados do patio</param>
+        /// <remarks>
+        /// Atualiza os dados de um pátio existente.
+        /// 
+        /// **Roles:** Admin
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <param name="patioDto">Novos dados do pátio</param>
+        /// <returns>Pátio atualizado</returns>
         [HttpPut("{nomePatio}")]
-        [SwaggerOperation(Summary = "Atualizar patio existente")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PatioResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Atualizar pátio",
+            Description = "Atualiza dados de um pátio existente",
+            OperationId = "UpdatePatio"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Patio))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> UpdatePatio(
-            [FromRoute] string nomePatio,
-            [FromBody] PatioDto patioDto)
+        public async Task<ActionResult<Patio>> UpdatePatio(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio,
+            [FromBody, SwaggerRequestBody("Dados atualizados do pátio", Required = true)] PatioDto patioDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
-
-            if (nomePatio != patioDto.NomePatio)
-                return BadRequest(new ErrorResponse { Message = "O nome do patio na URL nao corresponde ao nome do corpo da requisicao." });
+                return BadRequest(CreateErrorResponse("Dados de atualização inválidos"));
 
             var response = await _patioService.UpdatePatioAsync(nomePatio, patioDto);
 
             if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
             {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var patioResponse = new PatioResponse
-            {
-                NomePatio = response.Data.NomePatio,
-                Localizacao = response.Data.Localizacao,
-                VagasTotais = response.Data.VagasTotais,
-                VagasOcupadas = response.Data.VagasOcupadas,
-                VagasDisponiveis = response.Data.VagasDisponiveis,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/patio", Method = "GET" },
-                    new Link { Rel = "vagas", Href = $"{baseUrl}/api/patio/{response.Data.NomePatio}/vagas", Method = "GET" }
-                }
-            };
-
-            return Ok(patioResponse);
+                Data = response.Data,
+                Message = "Pátio atualizado com sucesso",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
         }
 
         /// <summary>
-        /// Exclui um patio do sistema.
+        /// Excluir pátio
         /// </summary>
-        /// <param name="nomePatio">Nome do patio a ser excluido</param>
+        /// <remarks>
+        /// Remove um pátio do sistema.
+        /// 
+        /// **Roles:** Admin
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Confirmação de exclusão</returns>
         [HttpDelete("{nomePatio}")]
-        [SwaggerOperation(Summary = "Excluir patio")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Excluir pátio",
+            Description = "Remove um pátio do sistema",
+            OperationId = "DeletePatio"
+        )]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<IActionResult> DeletePatio([FromRoute] string nomePatio)
+        public async Task<IActionResult> DeletePatio(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
         {
-            if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
-
             var response = await _patioService.DeletePatioAsync(nomePatio);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
+                return NotFound(CreateErrorResponse(response.Message));
 
             return NoContent();
         }
 
         /// <summary>
-        /// Obtem a quantidade de vagas disponiveis em um patio.
+        /// Estatísticas do pátio (V2)
         /// </summary>
-        /// <param name="nomePatio">Nome do patio</param>
-        [HttpGet("{nomePatio}/vagas")]
-        [SwaggerOperation(Summary = "Obter vagas disponiveis no patio")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(VagasResponse))]
+        /// <remarks>
+        /// **VERSÃO 2** - Retorna estatísticas detalhadas de um pátio específico.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Estatísticas do pátio</returns>
+        [HttpGet("{nomePatio}/estatisticas")]
+        [MapToApiVersion("2.0")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Estatísticas do pátio (V2)",
+            Description = "Retorna estatísticas detalhadas do pátio - Versão 2",
+            OperationId = "GetEstatisticasPatioV2"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetVagasDisponiveis([FromRoute] string nomePatio)
+        public async Task<ActionResult> GetEstatisticasPatioV2(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
         {
-            if (string.IsNullOrEmpty(nomePatio))
-                return BadRequest(new ErrorResponse { Message = "Nome do patio obrigatorio." });
+            var patioResponse = await _patioService.GetPatioAsync(nomePatio);
+            
+            if (!patioResponse.Success || patioResponse.Data == null)
+                return NotFound(CreateErrorResponse("Pátio não encontrado"));
 
-            var response = await _patioService.GetVagasDisponiveisAsync(nomePatio);
-
-            if (!response.Success)
-                return NotFound(new ErrorResponse { Message = response.Message });
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var vagasResponse = new VagasResponse
+            var patio = patioResponse.Data;
+            var estatisticas = new
             {
-                NomePatio = nomePatio,
-                VagasDisponiveis = response.Data,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/patio/{nomePatio}/vagas", Method = "GET" },
-                    new Link { Rel = "patio", Href = $"{baseUrl}/api/patio/{nomePatio}", Method = "GET" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/patio", Method = "GET" }
-                }
+                Patio = patio.NomePatio,
+                patio.Localizacao,
+                patio.VagasTotais,
+                patio.VagasOcupadas,
+                patio.VagasDisponiveis,
+                TaxaOcupacao = Math.Round(patio.TaxaOcupacao, 2),
+                Status = patio.VagasDisponiveis > 0 ? "Com vagas" : "Lotado",
+                UltimaAtualizacao = DateTime.Now
             };
 
-            return Ok(vagasResponse);
+            return Ok(new
+            {
+                Data = estatisticas,
+                Message = "Estatísticas recuperadas com sucesso",
+                Timestamp = DateTime.Now,
+                Version = "2.0"
+            });
         }
-    }
 
-    public class PatioResponse
-    {
-        public string NomePatio { get; set; } = string.Empty;
-        public string Localizacao { get; set; } = string.Empty;
-        public int VagasTotais { get; set; }
-        public int VagasOcupadas { get; set; }
-        public int VagasDisponiveis { get; set; }
-        public List<Link> Links { get; set; } = new List<Link>();
-    }
+        /// <summary>
+        /// Listar pátios com vagas disponíveis
+        /// </summary>
+        /// <remarks>
+        /// Retorna apenas os pátios que possuem vagas disponíveis.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <returns>Lista de pátios com vagas</returns>
+        [HttpGet("com-vagas")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar pátios com vagas",
+            Description = "Retorna pátios com vagas disponíveis",
+            OperationId = "GetPatiosComVagas"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Patio>))]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult<List<Patio>>> GetPatiosComVagas()
+        {
+            var response = await _patioService.GetPatiosComVagasDisponiveisAsync();
+            return HandleServiceResponse(response);
+        }
 
-    public class VagasResponse
-    {
-        public string NomePatio { get; set; } = string.Empty;
-        public int VagasDisponiveis { get; set; }
-        public List<Link> Links { get; set; } = new List<Link>();
+        /// <summary>
+        /// Verificar vagas disponíveis
+        /// </summary>
+        /// <remarks>
+        /// Verifica se um pátio específico possui vagas disponíveis.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Status das vagas</returns>
+        [HttpGet("{nomePatio}/vagas")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Verificar vagas",
+            Description = "Verifica vagas disponíveis no pátio",
+            OperationId = "GetVagasDisponiveis"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult> GetVagasDisponiveis(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
+        {
+            var response = await _patioService.VerificarVagasDisponiveisAsync(nomePatio);
+            
+            if (!response.Success)
+                return NotFound(CreateErrorResponse(response.Message));
+
+            var patioResponse = await _patioService.GetPatioAsync(nomePatio);
+            var patio = patioResponse.Data;
+
+            return Ok(new
+            {
+                Data = new
+                {
+                    NomePatio = nomePatio,
+                    VagasDisponiveis = patio?.VagasDisponiveis ?? 0,
+                    TemVagas = response.Data,
+                    Timestamp = DateTime.Now
+                },
+                Message = response.Data ? "Pátio possui vagas disponíveis" : "Pátio está cheio",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
+        }
     }
 }

@@ -9,10 +9,10 @@ namespace MottuApi.Examples
         {
             return new ClienteDto
             {
-                UsuarioCliente = "DanPtz",
-                Nome = "Danilo Potenza",
-                Senha = "Senh4111",
-                MotoPlaca = "ABC-1234"
+                UsuarioCliente = "carlos.santos",
+                Nome = "Carlos Santos",
+                Senha = "MinhaSenha123",
+                MotoPlaca = "XYZ-5678"
             };
         }
     }

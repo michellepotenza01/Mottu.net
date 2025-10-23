@@ -1,9 +1,6 @@
 using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
@@ -18,18 +15,12 @@ namespace MottuApi.Repositories
 
         public async Task<List<Patio>> GetAllAsync()
         {
-            return await _context.Patios.ToListAsync();
-        }
-
-        public async Task<List<Patio>> GetPaginatedAsync(int page, int pageSize)
-        {
             return await _context.Patios
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<Patio> GetByIdAsync(string nomePatio)
+        public async Task<Patio?> GetByIdAsync(string nomePatio)
         {
             return await _context.Patios
                 .FirstOrDefaultAsync(p => p.NomePatio == nomePatio);
@@ -55,12 +46,45 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string nomePatio)
         {
-            return await _context.Patios.AnyAsync(p => p.NomePatio == nomePatio);
+            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
+            try
+            {
+                var sql = "SELECT COUNT(*) FROM \"Patios\" WHERE \"NomePatio\" = :p0";
+                var count = await _context.Database.SqlQueryRaw<int>(sql, nomePatio).FirstOrDefaultAsync();
+                return count > 0;
+            }
+            catch
+            {
+                // Fallback seguro
+                return false;
+            }
         }
 
         public async Task<int> GetTotalCountAsync()
         {
             return await _context.Patios.CountAsync();
+        }
+
+        public async Task<List<Patio>> GetPatiosComVagasDisponiveisAsync()
+        {
+            return await _context.Patios
+                .Where(p => p.VagasTotais - p.VagasOcupadas > 0)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<bool> AtualizarVagasAsync(string nomePatio, int alteracaoVagas)
+        {
+            var patio = await GetByIdAsync(nomePatio);
+            if (patio is null) return false;
+
+            var novasVagasOcupadas = patio.VagasOcupadas + alteracaoVagas;
+            if (novasVagasOcupadas < 0 || novasVagasOcupadas > patio.VagasTotais)
+                return false;
+
+            patio.VagasOcupadas = novasVagasOcupadas;
+            await UpdateAsync(patio);
+            return true;
         }
     }
 }

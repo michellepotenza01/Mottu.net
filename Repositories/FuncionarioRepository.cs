@@ -1,9 +1,6 @@
 using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
@@ -16,23 +13,16 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
+        // ✅ TODOS OS MÉTODOS NORMAIS COM LINQ
         public async Task<List<Funcionario>> GetAllAsync()
         {
             return await _context.Funcionarios
                 .Include(f => f.Patio)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<List<Funcionario>> GetPaginatedAsync(int page, int pageSize)
-        {
-            return await _context.Funcionarios
-                .Include(f => f.Patio)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-        }
-
-        public async Task<Funcionario> GetByIdAsync(string usuarioFuncionario)
+        public async Task<Funcionario?> GetByIdAsync(string usuarioFuncionario)
         {
             return await _context.Funcionarios
                 .Include(f => f.Patio)
@@ -59,12 +49,24 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string usuarioFuncionario)
         {
-            return await _context.Funcionarios.AnyAsync(f => f.UsuarioFuncionario == usuarioFuncionario);
+            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
+            try
+            {
+                var sql = "SELECT COUNT(*) FROM \"Funcionarios\" WHERE \"UsuarioFuncionario\" = :p0";
+                var count = await _context.Database.SqlQueryRaw<int>(sql, usuarioFuncionario).FirstOrDefaultAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
-        public async Task<int> GetTotalCountAsync()
+        public async Task<Funcionario?> GetByUsernameAsync(string usuario)
         {
-            return await _context.Funcionarios.CountAsync();
+            return await _context.Funcionarios
+                .Include(f => f.Patio)
+                .FirstOrDefaultAsync(f => f.UsuarioFuncionario == usuario);
         }
 
         public async Task<List<Funcionario>> GetByPatioAsync(string nomePatio)
@@ -72,7 +74,15 @@ namespace MottuApi.Repositories
             return await _context.Funcionarios
                 .Where(f => f.NomePatio == nomePatio)
                 .Include(f => f.Patio)
+                .AsNoTracking()
                 .ToListAsync();
+        }
+
+        public async Task<bool> PertenceAoPatioAsync(string usuarioFuncionario, string nomePatio)
+        {
+            // ✅ AQUI PODE SER LINQ NORMAL (não gera TRUE/FALSE)
+            return await _context.Funcionarios
+                .AnyAsync(f => f.UsuarioFuncionario == usuarioFuncionario && f.NomePatio == nomePatio);
         }
     }
 }

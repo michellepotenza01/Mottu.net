@@ -1,9 +1,7 @@
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Repositories;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using MottuApi.Models.Common;
 
 namespace MottuApi.Services
 {
@@ -11,100 +9,154 @@ namespace MottuApi.Services
     {
         private readonly PatioRepository _patioRepository;
         private readonly MotoRepository _motoRepository;
+        private readonly FuncionarioRepository _funcionarioRepository;
 
-        public PatioService(PatioRepository patioRepository, MotoRepository motoRepository)
+        public PatioService(PatioRepository patioRepository, MotoRepository motoRepository, FuncionarioRepository funcionarioRepository)
         {
             _patioRepository = patioRepository;
             _motoRepository = motoRepository;
+            _funcionarioRepository = funcionarioRepository;
         }
 
         public async Task<ServiceResponse<List<Patio>>> GetPatiosAsync()
         {
-            var patios = await _patioRepository.GetAllAsync();
-            return new ServiceResponse<List<Patio>>(patios);
+            try
+            {
+                var patios = await _patioRepository.GetAllAsync();
+                return ServiceResponse<List<Patio>>.Ok(patios, "Pátios recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Patio>>.Error($"Erro ao buscar pátios: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Patio>> GetPatioAsync(string nomePatio)
         {
-            var patio = await _patioRepository.GetByIdAsync(nomePatio);
-            if (patio == null)
-                return new ServiceResponse<Patio> { Success = false, Message = "Patio nao encontrado" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nomePatio))
+                    return ServiceResponse<Patio>.Error("Nome do pátio é obrigatório");
 
-            return new ServiceResponse<Patio>(patio);
+                var patio = await _patioRepository.GetByIdAsync(nomePatio);
+                return patio is null 
+                    ? ServiceResponse<Patio>.NotFound("Pátio")
+                    : ServiceResponse<Patio>.Ok(patio, "Pátio encontrado com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Patio>.Error($"Erro ao buscar pátio: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Patio>> CreatePatioAsync(PatioDto patioDto)
         {
-            var patio = new Patio
+            try
             {
-                NomePatio = patioDto.NomePatio,
-                Localizacao = patioDto.Localizacao,
-                VagasTotais = patioDto.VagasTotais,
-                VagasOcupadas = 0
-            };
+                if (await _patioRepository.ExistsAsync(patioDto.NomePatio))
+                    return ServiceResponse<Patio>.Error("Pátio já cadastrado");
 
-            await _patioRepository.AddAsync(patio);
-            return new ServiceResponse<Patio>(patio, "Patio criado com sucesso!");
+                if (patioDto.VagasTotais <= 0)
+                    return ServiceResponse<Patio>.Error("Número de vagas deve ser maior que zero");
+
+                var patio = new Patio
+                {
+                    NomePatio = patioDto.NomePatio.Trim(),
+                    Localizacao = patioDto.Localizacao.Trim(),
+                    VagasTotais = patioDto.VagasTotais,
+                    VagasOcupadas = 0
+                };
+
+                await _patioRepository.AddAsync(patio);
+                return ServiceResponse<Patio>.Ok(patio, "Pátio criado com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Patio>.Error($"Erro ao criar pátio: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Patio>> UpdatePatioAsync(string nomePatio, PatioDto patioDto)
         {
-            var patioExistente = await _patioRepository.GetByIdAsync(nomePatio);
-            if (patioExistente == null)
-                return new ServiceResponse<Patio> { Success = false, Message = "Patio nao encontrado" };
+            try
+            {
+                var patioExistente = await _patioRepository.GetByIdAsync(nomePatio);
+                if (patioExistente is null)
+                    return ServiceResponse<Patio>.NotFound("Pátio");
 
-            if (patioDto.VagasTotais < patioExistente.VagasOcupadas)
-                return new ServiceResponse<Patio> { Success = false, Message = "Nao foi possivel reduzir vagas totais abaixo das vagas ocupadas" };
+                if (patioDto.VagasTotais < patioExistente.VagasOcupadas)
+                    return ServiceResponse<Patio>.Error("Não é possível reduzir vagas totais abaixo das vagas ocupadas");
 
-            patioExistente.Localizacao = patioDto.Localizacao;
-            patioExistente.VagasTotais = patioDto.VagasTotais;
+                patioExistente.Localizacao = patioDto.Localizacao.Trim();
+                patioExistente.VagasTotais = patioDto.VagasTotais;
 
-            await _patioRepository.UpdateAsync(patioExistente);
-            return new ServiceResponse<Patio>(patioExistente, "P�tio atualizado com sucesso!");
+                await _patioRepository.UpdateAsync(patioExistente);
+                return ServiceResponse<Patio>.Ok(patioExistente, "Pátio atualizado com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Patio>.Error($"Erro ao atualizar pátio: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<bool>> DeletePatioAsync(string nomePatio)
         {
-            var patio = await _patioRepository.GetByIdAsync(nomePatio);
-            if (patio == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Patio nao encontrado" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nomePatio))
+                    return ServiceResponse<bool>.Error("Nome do pátio é obrigatório");
 
-            var motosNoPatio = await _motoRepository.GetByPatioAsync(nomePatio);
-            if (motosNoPatio.Any())
-                return new ServiceResponse<bool> { Success = false, Message = "Nao foi possivel excluir o patio enquanto houver motos associadas" };
+                var patio = await _patioRepository.GetByIdAsync(nomePatio);
+                if (patio is null)
+                    return ServiceResponse<bool>.NotFound("Pátio");
 
-            await _patioRepository.DeleteAsync(patio);
-            return new ServiceResponse<bool>(true, "Patio removido com sucesso!");
-        }
+                var motosNoPatio = await _motoRepository.GetByPatioAsync(nomePatio);
+                if (motosNoPatio.Any())
+                    return ServiceResponse<bool>.Error("Não é possível excluir o pátio enquanto houver motos associadas");
 
-        public async Task<ServiceResponse<List<Patio>>> GetPatiosPaginatedAsync(int page, int pageSize)
-        {
-            var patios = await _patioRepository.GetPaginatedAsync(page, pageSize);
-            return new ServiceResponse<List<Patio>>(patios);
-        }
+                var funcionariosNoPatio = await _funcionarioRepository.GetByPatioAsync(nomePatio);
+                if (funcionariosNoPatio.Any())
+                    return ServiceResponse<bool>.Error("Não é possível excluir o pátio enquanto houver funcionários associados");
 
-        public async Task<ServiceResponse<int>> GetTotalPatiosCountAsync()
-        {
-            var count = await _patioRepository.GetTotalCountAsync();
-            return new ServiceResponse<int>(count);
+                await _patioRepository.DeleteAsync(patio);
+                return ServiceResponse<bool>.Ok(true, "Pátio removido com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<bool>.Error($"Erro ao excluir pátio: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<bool>> VerificarVagasDisponiveisAsync(string nomePatio)
         {
-            var patio = await _patioRepository.GetByIdAsync(nomePatio);
-            if (patio == null)
-                return new ServiceResponse<bool> { Success = false, Message = "P�tio n�o encontrado" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nomePatio))
+                    return ServiceResponse<bool>.Error("Nome do pátio é obrigatório");
 
-            return new ServiceResponse<bool>(patio.VagasDisponiveis > 0);
+                var patio = await _patioRepository.GetByIdAsync(nomePatio);
+                if (patio is null)
+                    return ServiceResponse<bool>.NotFound("Pátio");
+
+                return ServiceResponse<bool>.Ok(patio.TemVagaDisponivel(), "Verificação de vagas realizada");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<bool>.Error($"Erro ao verificar vagas: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<int>> GetVagasDisponiveisAsync(string nomePatio)
+        public async Task<ServiceResponse<List<Patio>>> GetPatiosComVagasDisponiveisAsync()
         {
-            var patio = await _patioRepository.GetByIdAsync(nomePatio);
-            if (patio == null)
-                return new ServiceResponse<int> { Success = false, Message = "P�tio n�o encontrado" };
-
-            return new ServiceResponse<int>(patio.VagasDisponiveis);
+            try
+            {
+                var patios = await _patioRepository.GetPatiosComVagasDisponiveisAsync();
+                return ServiceResponse<List<Patio>>.Ok(patios, "Pátios com vagas disponíveis recuperados");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Patio>>.Error($"Erro ao buscar pátios com vagas: {ex.Message}");
+            }
         }
     }
 }

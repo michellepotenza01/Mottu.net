@@ -1,10 +1,8 @@
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Repositories;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MottuApi3.Enums;
+using MottuApi.Models.ML;
+using MottuApi.Enums;
 
 namespace MottuApi.Services
 {
@@ -13,202 +11,302 @@ namespace MottuApi.Services
         private readonly MotoRepository _motoRepository;
         private readonly FuncionarioRepository _funcionarioRepository;
         private readonly PatioRepository _patioRepository;
+        private readonly MotoPredictionService _predictionService;
 
-        public MotoService(MotoRepository motoRepository, FuncionarioRepository funcionarioRepository, PatioRepository patioRepository)
+        public MotoService(MotoRepository motoRepository, FuncionarioRepository funcionarioRepository, 
+                         PatioRepository patioRepository, MotoPredictionService predictionService)
         {
             _motoRepository = motoRepository;
             _funcionarioRepository = funcionarioRepository;
             _patioRepository = patioRepository;
+            _predictionService = predictionService;
         }
 
         public async Task<ServiceResponse<List<Moto>>> GetMotosAsync(StatusMoto? status = null, SetorMoto? setor = null)
         {
-            var motos = await _motoRepository.GetAllAsync();
+            try
+            {
+                List<Moto> motos;
 
-            if (status.HasValue)
-                motos = motos.Where(m => m.Status == status.Value).ToList();
+                if (status.HasValue && setor.HasValue)
+                    motos = await _motoRepository.GetAllAsync();
+                else if (status.HasValue)
+                    motos = await _motoRepository.GetByStatusAsync(status.Value);
+                else if (setor.HasValue)
+                    motos = await _motoRepository.GetAllAsync(); // Filtro em memória
+                else
+                    motos = await _motoRepository.GetAllAsync();
 
-            if (setor.HasValue)
-                motos = motos.Where(m => m.Setor == setor.Value).ToList();
+                // Filtros combinados em memória
+                if (status.HasValue && setor.HasValue)
+                    motos = motos.Where(m => m.Status == status.Value && m.Setor == setor.Value).ToList();
+                else if (setor.HasValue)
+                    motos = motos.Where(m => m.Setor == setor.Value).ToList();
 
-            return new ServiceResponse<List<Moto>>(motos);
+                return ServiceResponse<List<Moto>>.Ok(motos, "Motos recuperadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Moto>>.Error($"Erro ao buscar motos: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Moto>> GetMotoAsync(string placa)
         {
-            var moto = await _motoRepository.GetByIdAsync(placa);
-            if (moto == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Moto nao encontrada" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(placa))
+                    return ServiceResponse<Moto>.Error("Placa é obrigatória");
 
-            return new ServiceResponse<Moto>(moto);
+                var moto = await _motoRepository.GetByIdAsync(placa);
+                return moto is null 
+                    ? ServiceResponse<Moto>.NotFound("Moto")
+                    : ServiceResponse<Moto>.Ok(moto, "Moto encontrada com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Moto>.Error($"Erro ao buscar moto: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Moto>> CreateMotoAsync(MotoDto motoDto)
         {
-            var motoExistente = await _motoRepository.GetByIdAsync(motoDto.Placa);
-            if (motoExistente != null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Placa ja cadastrada" };
-
-            var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
-            if (funcionario == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao encontrado" };
-
-            if (funcionario.NomePatio != motoDto.NomePatio)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao pertence a este patio" };
-
-            var patio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
-            if (patio == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Patio nao encontrado" };
-
-            if (patio.VagasOcupadas >= patio.VagasTotais)
-                return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no patio" };
-
-            var moto = new Moto
+            try
             {
-                Placa = motoDto.Placa,
-                Modelo = motoDto.Modelo,
-                Status = motoDto.Status,
-                Setor = motoDto.Setor,
-                NomePatio = motoDto.NomePatio,
-                UsuarioFuncionario = motoDto.UsuarioFuncionario
-            };
+                if (await _motoRepository.ExistsAsync(motoDto.Placa))
+                    return ServiceResponse<Moto>.Error("Placa já cadastrada");
 
-            if (moto.Status == StatusMoto.Disponivel || moto.Status == StatusMoto.Manutencao)
-            {
-                patio.VagasOcupadas++;
-                await _patioRepository.UpdateAsync(patio);
+                var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
+                if (funcionario is null)
+                    return ServiceResponse<Moto>.NotFound("Funcionário");
+
+                if (!funcionario.PertenceAoPatio(motoDto.NomePatio))
+                    return ServiceResponse<Moto>.Error("Funcionário não pertence a este pátio");
+
+                var patio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
+                if (patio is null)
+                    return ServiceResponse<Moto>.NotFound("Pátio");
+
+                bool ocupaVaga = motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao;
+                if (ocupaVaga && !patio.TemVagaDisponivel())
+                    return ServiceResponse<Moto>.Error("Não há vagas disponíveis no pátio");
+
+                var moto = new Moto
+                {
+                    Placa = motoDto.Placa.Trim().ToUpper(),
+                    Modelo = motoDto.Modelo,
+                    Status = motoDto.Status,
+                    Setor = motoDto.Setor,
+                    NomePatio = motoDto.NomePatio.Trim(),
+                    UsuarioFuncionario = motoDto.UsuarioFuncionario.Trim(),
+                    Quilometragem = motoDto.Quilometragem,
+                    DataUltimaRevisao = motoDto.DataUltimaRevisao,
+                    QuantidadeRevisoes = motoDto.DataUltimaRevisao.HasValue ? 1 : 0,
+                    DataCriacao = DateTime.Now,
+                    DataAtualizacao = DateTime.Now
+                };
+
+                var prediction = _predictionService.PredictManutencao(moto);
+                moto.PrecisaManutencao = prediction.PrecisaManutencao ? 1 : 0;
+                moto.ProbabilidadeManutencao = prediction.Probability;
+
+                if (ocupaVaga)
+                {
+                    patio.OcuparVaga();
+                    await _patioRepository.UpdateAsync(patio);
+                }
+
+                await _motoRepository.AddAsync(moto);
+                return ServiceResponse<Moto>.Ok(moto, "Moto criada com sucesso!");
             }
-
-            await _motoRepository.AddAsync(moto);
-            return new ServiceResponse<Moto>(moto, "Moto criada com sucesso!");
+            catch (Exception ex)
+            {
+                return ServiceResponse<Moto>.Error($"Erro ao criar moto: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Moto>> UpdateMotoAsync(string placa, MotoDto motoDto)
         {
-            var motoExistente = await _motoRepository.GetByIdAsync(placa);
-            if (motoExistente == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Moto nao encontrada" };
-
-            var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
-            if (funcionario == null)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao encontrado" };
-
-            if (funcionario.NomePatio != motoDto.NomePatio)
-                return new ServiceResponse<Moto> { Success = false, Message = "Funcionario nao pertence a este patio" };
-
-            var patioAntigo = await _patioRepository.GetByIdAsync(motoExistente.NomePatio);
-            var statusAntigo = motoExistente.Status;
-
-            if (motoExistente.NomePatio != motoDto.NomePatio)
+            try
             {
+                var motoExistente = await _motoRepository.GetByIdAsync(placa);
+                if (motoExistente is null)
+                    return ServiceResponse<Moto>.NotFound("Moto");
+
+                var funcionario = await _funcionarioRepository.GetByIdAsync(motoDto.UsuarioFuncionario);
+                if (funcionario is null)
+                    return ServiceResponse<Moto>.NotFound("Funcionário");
+
+                if (!funcionario.PertenceAoPatio(motoDto.NomePatio))
+                    return ServiceResponse<Moto>.Error("Funcionário não pertence a este pátio");
+
                 var novoPatio = await _patioRepository.GetByIdAsync(motoDto.NomePatio);
-                if (novoPatio == null)
-                    return new ServiceResponse<Moto> { Success = false, Message = "Novo patio nao encontrado" };
+                if (novoPatio is null)
+                    return ServiceResponse<Moto>.NotFound("Novo pátio");
 
-                if (novoPatio.VagasOcupadas >= novoPatio.VagasTotais &&
-                    (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao))
-                    return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no novo patio" };
+                var resultadoGerenciamento = await GerenciarVagasDuranteAtualizacao(motoExistente, motoDto, novoPatio);
+                if (!resultadoGerenciamento.success)
+                    return ServiceResponse<Moto>.Error(resultadoGerenciamento.message);
 
-                if (statusAntigo == StatusMoto.Disponivel || statusAntigo == StatusMoto.Manutencao)
+                motoExistente.Modelo = motoDto.Modelo;
+                motoExistente.Status = motoDto.Status;
+                motoExistente.Setor = motoDto.Setor;
+                motoExistente.NomePatio = motoDto.NomePatio.Trim();
+                motoExistente.UsuarioFuncionario = motoDto.UsuarioFuncionario.Trim();
+                motoExistente.Quilometragem = motoDto.Quilometragem;
+                
+                if (motoDto.DataUltimaRevisao.HasValue && motoDto.DataUltimaRevisao != motoExistente.DataUltimaRevisao)
                 {
-                    patioAntigo.VagasOcupadas--;
-                    await _patioRepository.UpdateAsync(patioAntigo);
+                    motoExistente.QuantidadeRevisoes++;
                 }
+                
+                motoExistente.DataUltimaRevisao = motoDto.DataUltimaRevisao;
+                motoExistente.DataAtualizacao = DateTime.Now;
 
-                if (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao)
-                {
-                    novoPatio.VagasOcupadas++;
-                    await _patioRepository.UpdateAsync(novoPatio);
-                }
+                var prediction = _predictionService.PredictManutencao(motoExistente);
+                motoExistente.PrecisaManutencao = prediction.PrecisaManutencao ? 1 : 0;
+                motoExistente.ProbabilidadeManutencao = prediction.Probability;
 
-                motoExistente.NomePatio = motoDto.NomePatio;
+                await _motoRepository.UpdateAsync(motoExistente);
+                return ServiceResponse<Moto>.Ok(motoExistente, "Moto atualizada com sucesso!");
             }
-            else
+            catch (Exception ex)
             {
-                if (statusAntigo != motoDto.Status)
+                return ServiceResponse<Moto>.Error($"Erro ao atualizar moto: {ex.Message}");
+            }
+        }
+
+        private async Task<(bool success, string message)> GerenciarVagasDuranteAtualizacao(Moto moto, MotoDto motoDto, Patio novoPatio)
+        {
+            var patioAntigo = await _patioRepository.GetByIdAsync(moto.NomePatio);
+            if (patioAntigo is null)
+                return (false, "Pátio antigo não encontrado");
+
+            bool ocupavaVagaAntes = moto.OcupaVaga;
+            bool ocuparaVagaAgora = motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao;
+            bool mudouPatio = moto.NomePatio != motoDto.NomePatio;
+
+            try
+            {
+                if (mudouPatio)
                 {
-                    if ((statusAntigo == StatusMoto.Disponivel || statusAntigo == StatusMoto.Manutencao) &&
-                        motoDto.Status == StatusMoto.Alugada)
+                    if (ocupavaVagaAntes)
                     {
-                        patioAntigo.VagasOcupadas--;
+                        patioAntigo.LiberarVaga();
                         await _patioRepository.UpdateAsync(patioAntigo);
                     }
-                    else if (statusAntigo == StatusMoto.Alugada &&
-                             (motoDto.Status == StatusMoto.Disponivel || motoDto.Status == StatusMoto.Manutencao))
-                    {
-                        if (patioAntigo.VagasOcupadas >= patioAntigo.VagasTotais)
-                            return new ServiceResponse<Moto> { Success = false, Message = "Nao possuem vagas disponiveis no patio" };
 
-                        patioAntigo.VagasOcupadas++;
+                    if (ocuparaVagaAgora)
+                    {
+                        if (!novoPatio.TemVagaDisponivel())
+                            return (false, "Não há vagas disponíveis no novo pátio");
+                        
+                        novoPatio.OcuparVaga();
+                        await _patioRepository.UpdateAsync(novoPatio);
+                    }
+                }
+                else
+                {
+                    if (ocupavaVagaAntes && !ocuparaVagaAgora)
+                    {
+                        patioAntigo.LiberarVaga();
+                        await _patioRepository.UpdateAsync(patioAntigo);
+                    }
+                    else if (!ocupavaVagaAntes && ocuparaVagaAgora)
+                    {
+                        if (!patioAntigo.TemVagaDisponivel())
+                            return (false, "Não há vagas disponíveis no pátio");
+                        
+                        patioAntigo.OcuparVaga();
                         await _patioRepository.UpdateAsync(patioAntigo);
                     }
                 }
+
+                return (true, "Vagas gerenciadas com sucesso");
             }
-
-            motoExistente.Modelo = motoDto.Modelo;
-            motoExistente.Status = motoDto.Status;
-            motoExistente.Setor = motoDto.Setor;
-            motoExistente.UsuarioFuncionario = motoDto.UsuarioFuncionario;
-
-            await _motoRepository.UpdateAsync(motoExistente);
-            return new ServiceResponse<Moto>(motoExistente, "Moto atualizada com sucesso!");
+            catch (Exception ex)
+            {
+                return (false, $"Erro ao gerenciar vagas: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<bool>> DeleteMotoAsync(string placa)
         {
-            var moto = await _motoRepository.GetByIdAsync(placa);
-            if (moto == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Moto nao encontrada" };
-
-            var patio = await _patioRepository.GetByIdAsync(moto.NomePatio);
-
-            if (moto.Status == StatusMoto.Disponivel || moto.Status == StatusMoto.Manutencao)
+            try
             {
-                patio.VagasOcupadas--;
-                await _patioRepository.UpdateAsync(patio);
+                if (string.IsNullOrWhiteSpace(placa))
+                    return ServiceResponse<bool>.Error("Placa é obrigatória");
+
+                var moto = await _motoRepository.GetByIdAsync(placa);
+                if (moto is null)
+                    return ServiceResponse<bool>.NotFound("Moto");
+
+                var patio = await _patioRepository.GetByIdAsync(moto.NomePatio);
+                if (patio is not null && moto.OcupaVaga)
+                {
+                    patio.LiberarVaga();
+                    await _patioRepository.UpdateAsync(patio);
+                }
+
+                await _motoRepository.DeleteAsync(moto);
+                return ServiceResponse<bool>.Ok(true, "Moto removida com sucesso!");
             }
-
-            await _motoRepository.DeleteAsync(moto);
-            return new ServiceResponse<bool>(true, "Moto removida com sucesso!");
+            catch (Exception ex)
+            {
+                return ServiceResponse<bool>.Error($"Erro ao excluir moto: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<List<Moto>>> GetMotosPaginatedAsync(int page, int pageSize, StatusMoto? status = null, SetorMoto? setor = null)
+        public async Task<ServiceResponse<MotoManutencaoPrediction>> PreverManutencaoAsync(string placa)
         {
-            var motos = await _motoRepository.GetAllAsync();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(placa))
+                    return ServiceResponse<MotoManutencaoPrediction>.Error("Placa é obrigatória");
 
-            if (status.HasValue)
-                motos = motos.Where(m => m.Status == status.Value).ToList();
+                var moto = await _motoRepository.GetByIdAsync(placa);
+                if (moto is null)
+                    return ServiceResponse<MotoManutencaoPrediction>.NotFound("Moto");
 
-            if (setor.HasValue)
-                motos = motos.Where(m => m.Setor == setor.Value).ToList();
+                var prediction = _predictionService.PredictManutencao(moto);
+                
+                await _motoRepository.AtualizarStatusManutencaoAsync(placa, prediction.PrecisaManutencao, prediction.Probability);
 
-            var paginated = motos.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return new ServiceResponse<List<Moto>>(paginated);
+                return ServiceResponse<MotoManutencaoPrediction>.Ok(prediction, "Predição realizada com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<MotoManutencaoPrediction>.Error($"Erro ao prever manutenção: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<int>> GetTotalMotosCountAsync(StatusMoto? status = null, SetorMoto? setor = null)
+        public async Task<ServiceResponse<List<Moto>>> GetMotosPrecisandoManutencaoAsync()
         {
-            var motos = await _motoRepository.GetAllAsync();
-
-            if (status.HasValue)
-                motos = motos.Where(m => m.Status == status.Value).ToList();
-
-            if (setor.HasValue)
-                motos = motos.Where(m => m.Setor == setor.Value).ToList();
-
-            return new ServiceResponse<int>(motos.Count);
+            try
+            {
+                var motos = await _motoRepository.GetMotosPrecisandoManutencaoAsync();
+                return ServiceResponse<List<Moto>>.Ok(motos, "Motos precisando de manutenção recuperadas");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Moto>>.Error($"Erro ao buscar motos para manutenção: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<List<Moto>>> GetMotosByPatioAsync(string nomePatio)
+        public async Task<ServiceResponse<List<Moto>>> GetMotosPorPatioAsync(string nomePatio)
         {
-            var motos = await _motoRepository.GetByPatioAsync(nomePatio);
-            return new ServiceResponse<List<Moto>>(motos);
-        }
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nomePatio))
+                    return ServiceResponse<List<Moto>>.Error("Nome do pátio é obrigatório");
 
-        public async Task<ServiceResponse<int>> CountMotosByStatusAsync(StatusMoto status, string nomePatio)
-        {
-            var count = await _motoRepository.CountByStatusAndPatioAsync(status, nomePatio);
-            return new ServiceResponse<int>(count);
+                var motos = await _motoRepository.GetByPatioAsync(nomePatio);
+                return ServiceResponse<List<Moto>>.Ok(motos, "Motos do pátio recuperadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Moto>>.Error($"Erro ao buscar motos do pátio: {ex.Message}");
+            }
         }
     }
 }

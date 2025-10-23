@@ -9,10 +9,11 @@ namespace MottuApi.Examples
         {
             return new FuncionarioDto
             {
-                UsuarioFuncionario = "LuhDani",
-                Nome = "Luisa Danielle",
-                Senha = "Luhlu00",
-                NomePatio = "Patio Centro"
+                UsuarioFuncionario = "maria.silva",
+                Nome = "Maria Silva",
+                Senha = "SenhaSegura123",
+                NomePatio = "Patio Centro",
+                Role = "Funcionario"
             };
         }
     }

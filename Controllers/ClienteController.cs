@@ -1,21 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Services;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Swashbuckle.AspNetCore.Filters; 
-using MottuApi.Examples;
 
 namespace MottuApi.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
     [Tags("Clientes")]
     [Produces("application/json")]
-    public class ClienteController : ControllerBase
+    [Consumes("application/json")]
+    public class ClienteController : BaseController
     {
         private readonly ClienteService _clienteService;
 
@@ -25,239 +24,289 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todos os clientes com paginacao.
+        /// Listar todos os clientes
         /// </summary>
-        /// <param name="page">Numero da pagina (padrao: 1)</param>
-        /// <param name="pageSize">Itens por pagina (padrao: 10, maximo: 50)</param>
+        /// <remarks>
+        /// Retorna todos os clientes cadastrados no sistema.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <returns>Lista de clientes</returns>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todos os clientes com paginacao")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Cliente>))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar clientes",
+            Description = "Retorna todos os clientes cadastrados",
+            OperationId = "GetClientes"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Cliente>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetClientes(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<List<Cliente>>> GetClientes()
         {
-            if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
-
-            if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 and 50." });
-
-            var clientesResponse = await _clienteService.GetClientesPaginatedAsync(page, pageSize);
-            var totalCountResponse = await _clienteService.GetTotalClientesCountAsync();
-
-            if (!clientesResponse.Success || !totalCountResponse.Success)
-                return BadRequest(new ErrorResponse { Message = clientesResponse.Message });
-
-            if (clientesResponse.Data == null || !clientesResponse.Data.Any())
-                return NoContent();
-
-            var totalCount = totalCountResponse.Data;
-            var totalPages = (int)System.Math.Ceiling(totalCount / (double)pageSize);
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-            var links = new List<Link>
-            {
-                new Link { Rel = "self", Href = $"{baseUrl}/api/cliente?page={page}&pageSize={pageSize}", Method = "GET" },
-                new Link { Rel = "create", Href = $"{baseUrl}/api/cliente", Method = "POST" }
-            };
-
-            if (page > 1)
-                links.Add(new Link { Rel = "prev", Href = $"{baseUrl}/api/cliente?page={page - 1}&pageSize={pageSize}", Method = "GET" });
-
-            if (page < totalPages)
-                links.Add(new Link { Rel = "next", Href = $"{baseUrl}/api/cliente?page={page + 1}&pageSize={pageSize}", Method = "GET" });
-
-            var response = new PagedResponse<Cliente>
-            {
-                Data = clientesResponse.Data,
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = links
-            };
-
-            return Ok(response);
+            var response = await _clienteService.GetClientesAsync();
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Retorna um cliente especifico pelo usuario.
+        /// Obter cliente específico
         /// </summary>
-        /// <param name="usuarioCliente">Usuario do cliente</param>
+        /// <remarks>
+        /// Retorna os detalhes de um cliente específico pelo nome de usuário.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="usuarioCliente">Nome de usuário do cliente</param>
+        /// <returns>Detalhes do cliente</returns>
         [HttpGet("{usuarioCliente}")]
-        [SwaggerOperation(Summary = "Obter cliente por usuario")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ClienteResponse))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Obter cliente",
+            Description = "Retorna detalhes de um cliente específico",
+            OperationId = "GetCliente"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Cliente))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetClienteByUsuario([FromRoute] string usuarioCliente)
+        public async Task<ActionResult<Cliente>> GetCliente(
+            [FromRoute, SwaggerParameter("Nome de usuário do cliente", Required = true)] string usuarioCliente)
         {
-            if (string.IsNullOrEmpty(usuarioCliente))
-                return BadRequest(new ErrorResponse { Message = "Usuario do cliente e obrigatorio." });
-
             var response = await _clienteService.GetClienteByIdAsync(usuarioCliente);
-
-            if (!response.Success || response.Data == null)
-                return NotFound(new ErrorResponse { Message = response.Message });
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var clienteResponse = new ClienteResponse
-            {
-                UsuarioCliente = response.Data.UsuarioCliente,
-                Nome = response.Data.Nome,
-                MotoPlaca = response.Data.MotoPlaca,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/cliente/{usuarioCliente}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/cliente/{usuarioCliente}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/cliente/{usuarioCliente}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/cliente", Method = "GET" }
-                }
-            };
-
-            return Ok(clienteResponse);
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Cria um novo cliente no sistema.
+        /// Criar novo cliente
         /// </summary>
+        /// <remarks>
+        /// Cria um novo cliente no sistema.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="clienteDto">Dados do novo cliente</param>
+        /// <returns>Cliente criado</returns>
         [HttpPost]
-        [SwaggerRequestExample(typeof(ClienteDto), typeof(ClienteExample))]
-        [SwaggerOperation(Summary = "Criar novo cliente")]
-        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ClienteResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Criar cliente",
+            Description = "Cadastra um novo cliente no sistema",
+            OperationId = "CreateCliente"
+        )]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Cliente))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> CreateCliente([FromBody] ClienteDto clienteDto)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<Cliente>> CreateCliente(
+            [FromBody, SwaggerRequestBody("Dados do cliente", Required = true)] ClienteDto clienteDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+                return BadRequest(CreateErrorResponse("Dados do cliente inválidos"));
 
             var response = await _clienteService.CreateClienteAsync(clienteDto);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrada"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
+                return BadRequest(CreateErrorResponse(response.Message));
 
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var clienteResponse = new ClienteResponse
-            {
-                UsuarioCliente = response.Data.UsuarioCliente,
-                Nome = response.Data.Nome,
-                MotoPlaca = response.Data.MotoPlaca,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/cliente", Method = "GET" }
-                }
-            };
-
-            return CreatedAtAction(
-                nameof(GetClienteByUsuario),
-                new { usuarioCliente = response.Data.UsuarioCliente },
-                clienteResponse
+            return HandleCreatedResponse(
+                nameof(GetCliente),
+                new { usuarioCliente = response.Data!.UsuarioCliente, version = RequestedApiVersion },
+                response.Data,
+                "Cliente criado com sucesso"
             );
         }
 
         /// <summary>
-        /// Atualiza um cliente existente.
+        /// Atualizar cliente
         /// </summary>
-        /// <param name="usuarioCliente">Usuario do cliente a ser atualizado</param>
-        /// <param name="clienteDto">Dados atualizados do cliente</param>
+        /// <remarks>
+        /// Atualiza os dados de um cliente existente.
+        /// 
+        /// **Roles:** Proprietário do recurso, Funcionario, Admin
+        /// </remarks>
+        /// <param name="usuarioCliente">Nome de usuário do cliente</param>
+        /// <param name="clienteDto">Novos dados do cliente</param>
+        /// <returns>Cliente atualizado</returns>
         [HttpPut("{usuarioCliente}")]
-        [SwaggerOperation(Summary = "Atualizar cliente existente")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ClienteResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Atualizar cliente",
+            Description = "Atualiza dados de um cliente existente",
+            OperationId = "UpdateCliente"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Cliente))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> UpdateCliente(
-            [FromRoute] string usuarioCliente,
-            [FromBody] ClienteDto clienteDto)
+        public async Task<ActionResult<Cliente>> UpdateCliente(
+            [FromRoute, SwaggerParameter("Nome de usuário do cliente", Required = true)] string usuarioCliente,
+            [FromBody, SwaggerRequestBody("Dados atualizados do cliente", Required = true)] ClienteDto clienteDto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+            if (User.IsInRole("Cliente") && !IsCurrentUser(usuarioCliente))
+                return Forbid();
 
-            if (usuarioCliente != clienteDto.UsuarioCliente)
-                return BadRequest(new ErrorResponse { Message = "O usuario do cliente na URL nao corresponde ao usuario do corpo da requisicao." });
+            if (!ModelState.IsValid)
+                return BadRequest(CreateErrorResponse("Dados de atualização inválidos"));
 
             var response = await _clienteService.UpdateClienteAsync(usuarioCliente, clienteDto);
 
             if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
             {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var clienteResponse = new ClienteResponse
-            {
-                UsuarioCliente = response.Data.UsuarioCliente,
-                Nome = response.Data.Nome,
-                MotoPlaca = response.Data.MotoPlaca,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/cliente/{response.Data.UsuarioCliente}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/cliente", Method = "GET" }
-                }
-            };
-
-            return Ok(clienteResponse);
+                response.Data,
+                Message = "Cliente atualizado com sucesso",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
         }
 
         /// <summary>
-        /// Exclui um cliente do sistema.
+        /// Excluir cliente
         /// </summary>
-        /// <param name="usuarioCliente">Usuario do cliente a ser excluido</param>
+        /// <remarks>
+        /// Remove um cliente do sistema.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="usuarioCliente">Nome de usuário do cliente</param>
+        /// <returns>Confirmação de exclusão</returns>
         [HttpDelete("{usuarioCliente}")]
-        [SwaggerOperation(Summary = "Excluir cliente")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Excluir cliente",
+            Description = "Remove um cliente do sistema",
+            OperationId = "DeleteCliente"
+        )]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<IActionResult> DeleteCliente([FromRoute] string usuarioCliente)
+        public async Task<IActionResult> DeleteCliente(
+            [FromRoute, SwaggerParameter("Nome de usuário do cliente", Required = true)] string usuarioCliente)
         {
-            if (string.IsNullOrEmpty(usuarioCliente))
-                return BadRequest(new ErrorResponse { Message = "Usuario do cliente obrigatorio." });
-
             var response = await _clienteService.DeleteClienteAsync(usuarioCliente);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
+                return NotFound(CreateErrorResponse(response.Message));
 
             return NoContent();
         }
-    }
 
-    public class ClienteResponse
-    {
-        public string UsuarioCliente { get; set; } = string.Empty;
-        public string Nome { get; set; } = string.Empty;
-        public string? MotoPlaca { get; set; }
-        public List<Link> Links { get; set; } = new List<Link>();
+        /// <summary>
+        /// Buscar cliente por moto (V2)
+        /// </summary>
+        /// <remarks>
+        /// **VERSÃO 2** - Retorna o cliente associado a uma moto específica.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="motoPlaca">Placa da moto no formato XXX-0000</param>
+        /// <returns>Cliente associado à moto</returns>
+        [HttpGet("por-moto/{motoPlaca}")]
+        [MapToApiVersion("2.0")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Buscar cliente por moto (V2)",
+            Description = "Retorna cliente associado a uma moto específica - Versão 2",
+            OperationId = "GetClientePorMotoV2"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Cliente))]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult<Cliente>> GetClientePorMotoV2(
+            [FromRoute, SwaggerParameter("Placa da moto", Required = true)] string motoPlaca)
+        {
+            var response = await _clienteService.GetClientePorMotoAsync(motoPlaca);
+            return HandleServiceResponse(response);
+        }
+
+        /// <summary>
+        /// Atualizar histórico de manutenção do cliente
+        /// </summary>
+        /// <remarks>
+        /// Registra uma nova manutenção no histórico do cliente.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="usuarioCliente">Nome de usuário do cliente</param>
+        /// <returns>Confirmação da atualização</returns>
+        [HttpPost("{usuarioCliente}/registrar-manutencao")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Registrar manutenção do cliente",
+            Description = "Atualiza histórico de manutenções do cliente",
+            OperationId = "RegistrarManutencaoCliente"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult> RegistrarManutencaoCliente(
+            [FromRoute, SwaggerParameter("Nome de usuário do cliente", Required = true)] string usuarioCliente)
+        {
+            var response = await _clienteService.AtualizarHistoricoManutencaoAsync(usuarioCliente);
+
+            if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
+            {
+                Message = "Histórico de manutenção atualizado com sucesso",
+                UsuarioCliente = usuarioCliente,
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
+        }
+
+        /// <summary>
+        /// Estatísticas de clientes (V2)
+        /// </summary>
+        /// <remarks>
+        /// **VERSÃO 2** - Retorna estatísticas detalhadas sobre os clientes do sistema.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <returns>Estatísticas dos clientes</returns>
+        [HttpGet("estatisticas")]
+        [MapToApiVersion("2.0")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Estatísticas de clientes (V2)",
+            Description = "Retorna estatísticas detalhadas dos clientes - Versão 2",
+            OperationId = "GetEstatisticasClientesV2"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetEstatisticasClientesV2()
+        {
+            var clientesResponse = await _clienteService.GetClientesAsync();
+            
+            if (!clientesResponse.Success || clientesResponse.Data == null)
+                return NoContent();
+
+            var clientes = clientesResponse.Data;
+            var clientesComMoto = clientes.Count(c => c.PossuiMoto());
+            var clientesSemMoto = clientes.Count(c => !c.PossuiMoto());
+
+            var estatisticas = new
+            {
+                TotalClientes = clientes.Count,
+                ClientesComMoto = clientesComMoto,
+                ClientesSemMoto = clientesSemMoto,
+                PercentualComMoto = clientes.Count > 0 ? 
+                    Math.Round((double)clientesComMoto / clientes.Count * 100, 2) : 0,
+                MediaManutencoes = clientes.Count > 0 ? 
+                    Math.Round(clientes.Average(c => c.QuantidadeManutencoes), 2) : 0,
+                ClienteMaisAntigo = clientes.MinBy(c => c.DataCriacao)?.UsuarioCliente,
+                UltimaAtualizacao = DateTime.Now
+            };
+
+            return Ok(new
+            {
+                Data = estatisticas,
+                Message = "Estatísticas de clientes recuperadas com sucesso",
+                Timestamp = DateTime.Now,
+                Version = "2.0"
+            });
+        }
     }
 }
-

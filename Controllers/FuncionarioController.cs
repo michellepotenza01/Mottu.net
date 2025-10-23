@@ -1,23 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Services;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MottuApi3.Enums;
-using Swashbuckle.AspNetCore.Filters; 
-using MottuApi.Examples;
-
 
 namespace MottuApi.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
     [Tags("Funcionarios")]
     [Produces("application/json")]
-    public class FuncionarioController : ControllerBase
+    [Consumes("application/json")]
+    public class FuncionarioController : BaseController
     {
         private readonly FuncionarioService _funcionarioService;
 
@@ -27,238 +24,256 @@ namespace MottuApi.Controllers
         }
 
         /// <summary>
-        /// Retorna todos os funcionarios com paginacao.
+        /// Listar todos os funcionários
         /// </summary>
-        /// <param name="page">NNumero da pagina (padrao: 1)</param>
-        /// <param name="pageSize">Itens por pagina (padrao: 10, maximo: 50)</param>
+        /// <remarks>
+        /// Retorna todos os funcionários cadastrados no sistema.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <returns>Lista de funcionários</returns>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todos os funcionarios com paginacao")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Funcionario>))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar funcionários",
+            Description = "Retorna todos os funcionários cadastrados",
+            OperationId = "GetFuncionarios"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Funcionario>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetFuncionarios(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<List<Funcionario>>> GetFuncionarios()
         {
-            if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
-
-            if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
-
-            var funcionariosResponse = await _funcionarioService.GetFuncionariosPaginatedAsync(page, pageSize);
-            var totalCountResponse = await _funcionarioService.GetTotalFuncionariosCountAsync();
-
-            if (!funcionariosResponse.Success || !totalCountResponse.Success)
-                return BadRequest(new ErrorResponse { Message = funcionariosResponse.Message });
-
-            if (funcionariosResponse.Data == null || !funcionariosResponse.Data.Any())
-                return NoContent();
-
-            var totalCount = totalCountResponse.Data;
-            var totalPages = (int)System.Math.Ceiling(totalCount / (double)pageSize);
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-            var links = new List<Link>
-            {
-                new Link { Rel = "self", Href = $"{baseUrl}/api/funcionario?page={page}&pageSize={pageSize}", Method = "GET" },
-                new Link { Rel = "create", Href = $"{baseUrl}/api/funcionario", Method = "POST" }
-            };
-
-            if (page > 1)
-                links.Add(new Link { Rel = "prev", Href = $"{baseUrl}/api/funcionario?page={page - 1}&pageSize={pageSize}", Method = "GET" });
-
-            if (page < totalPages)
-                links.Add(new Link { Rel = "next", Href = $"{baseUrl}/api/funcionario?page={page + 1}&pageSize={pageSize}", Method = "GET" });
-
-            var response = new PagedResponse<Funcionario>
-            {
-                Data = funcionariosResponse.Data,
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = links
-            };
-
-            return Ok(response);
+            var response = await _funcionarioService.GetFuncionariosAsync();
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Retorna um funcionario especifico pelo usuario.
+        /// Obter funcionário específico
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuario do funcionario</param>
+        /// <remarks>
+        /// Retorna os detalhes de um funcionário específico pelo nome de usuário.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="usuarioFuncionario">Nome de usuário do funcionário</param>
+        /// <returns>Detalhes do funcionário</returns>
         [HttpGet("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Obter funcionario por usuario")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FuncionarioResponse))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Obter funcionário",
+            Description = "Retorna detalhes de um funcionário específico",
+            OperationId = "GetFuncionario"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Funcionario))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetFuncionarioByUsuario([FromRoute] string usuarioFuncionario)
+        public async Task<ActionResult<Funcionario>> GetFuncionario(
+            [FromRoute, SwaggerParameter("Nome de usuário do funcionário", Required = true)] string usuarioFuncionario)
         {
-            if (string.IsNullOrEmpty(usuarioFuncionario))
-                return BadRequest(new ErrorResponse { Message = "Usuario do funcionario e obrigatorio." });
-
             var response = await _funcionarioService.GetFuncionarioByIdAsync(usuarioFuncionario);
-
-            if (!response.Success || response.Data == null)
-                return NotFound(new ErrorResponse { Message = response.Message });
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var funcionarioResponse = new FuncionarioResponse
-            {
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Nome = response.Data.Nome,
-                NomePatio = response.Data.NomePatio,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/funcionario/{usuarioFuncionario}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/funcionario/{usuarioFuncionario}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/funcionario/{usuarioFuncionario}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/funcionario", Method = "GET" }
-                }
-            };
-
-            return Ok(funcionarioResponse);
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Cria um novo funcionario no sistema.
+        /// Criar novo funcionário
         /// </summary>
+        /// <remarks>
+        /// Cria um novo funcionário no sistema.
+        /// 
+        /// **Roles:** Admin
+        /// </remarks>
+        /// <param name="funcionarioDto">Dados do novo funcionário</param>
+        /// <returns>Funcionário criado</returns>
         [HttpPost]
-        [SwaggerRequestExample(typeof(FuncionarioDto), typeof(FuncionarioExample))]
-        [SwaggerOperation(Summary = "Criar novo funcionario")]
-        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(FuncionarioResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Criar funcionário",
+            Description = "Cadastra um novo funcionário no sistema",
+            OperationId = "CreateFuncionario"
+        )]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Funcionario))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> CreateFuncionario([FromBody] FuncionarioDto funcionarioDto)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<Funcionario>> CreateFuncionario(
+            [FromBody, SwaggerRequestBody("Dados do funcionário", Required = true)] FuncionarioDto funcionarioDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+                return BadRequest(CreateErrorResponse("Dados do funcionário inválidos"));
 
             var response = await _funcionarioService.CreateFuncionarioAsync(funcionarioDto);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
+                return BadRequest(CreateErrorResponse(response.Message));
 
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var funcionarioResponse = new FuncionarioResponse
-            {
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Nome = response.Data.Nome,
-                NomePatio = response.Data.NomePatio,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/funcionario", Method = "GET" }
-                }
-            };
-
-            return CreatedAtAction(
-                nameof(GetFuncionarioByUsuario),
-                new { usuarioFuncionario = response.Data.UsuarioFuncionario },
-                funcionarioResponse
+            return HandleCreatedResponse(
+                nameof(GetFuncionario),
+                new { usuarioFuncionario = response.Data!.UsuarioFuncionario, version = RequestedApiVersion },
+                response.Data,
+                "Funcionário criado com sucesso"
             );
         }
 
         /// <summary>
-        /// Atualiza um funcionario existente.
+        /// Atualizar funcionário
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuario do funcionario a ser atualizado</param>
-        /// <param name="funcionarioDto">Dados atualizados do funcionario</param>
+        /// <remarks>
+        /// Atualiza os dados de um funcionário existente.
+        /// 
+        /// **Roles:** Admin, Funcionario (apenas próprio cadastro)
+        /// </remarks>
+        /// <param name="usuarioFuncionario">Nome de usuário do funcionário</param>
+        /// <param name="funcionarioDto">Novos dados do funcionário</param>
+        /// <returns>Funcionário atualizado</returns>
         [HttpPut("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Atualizar funcionario existente")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(FuncionarioResponse))]
+        [Authorize(Roles = "Admin,Funcionario")]
+        [SwaggerOperation(
+            Summary = "Atualizar funcionário",
+            Description = "Atualiza dados de um funcionário existente",
+            OperationId = "UpdateFuncionario"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Funcionario))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> UpdateFuncionario(
-            [FromRoute] string usuarioFuncionario,
-            [FromBody] FuncionarioDto funcionarioDto)
+        public async Task<ActionResult<Funcionario>> UpdateFuncionario(
+            [FromRoute, SwaggerParameter("Nome de usuário do funcionário", Required = true)] string usuarioFuncionario,
+            [FromBody, SwaggerRequestBody("Dados atualizados do funcionário", Required = true)] FuncionarioDto funcionarioDto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+            if (User.IsInRole("Funcionario") && !IsCurrentUser(usuarioFuncionario))
+                return Forbid();
 
-            if (usuarioFuncionario != funcionarioDto.UsuarioFuncionario)
-                return BadRequest(new ErrorResponse { Message = "O usuario do funcionario na URL nao corresponde ao usuario do corpo da requisicao." });
+            if (!ModelState.IsValid)
+                return BadRequest(CreateErrorResponse("Dados de atualização inválidos"));
 
             var response = await _funcionarioService.UpdateFuncionarioAsync(usuarioFuncionario, funcionarioDto);
 
             if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
             {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var funcionarioResponse = new FuncionarioResponse
-            {
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Nome = response.Data.Nome,
-                NomePatio = response.Data.NomePatio,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/funcionario/{response.Data.UsuarioFuncionario}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/funcionario", Method = "GET" }
-                }
-            };
-
-            return Ok(funcionarioResponse);
+                Data = response.Data,
+                Message = "Funcionário atualizado com sucesso",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
         }
 
         /// <summary>
-        /// Exclui um funcionario do sistema.
+        /// Excluir funcionário
         /// </summary>
-        /// <param name="usuarioFuncionario">Usuario do funcionario a ser excluido</param>
+        /// <remarks>
+        /// Remove um funcionário do sistema.
+        /// 
+        /// **Roles:** Admin
+        /// </remarks>
+        /// <param name="usuarioFuncionario">Nome de usuário do funcionário</param>
+        /// <returns>Confirmação de exclusão</returns>
         [HttpDelete("{usuarioFuncionario}")]
-        [SwaggerOperation(Summary = "Excluir funcionario")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Excluir funcionário",
+            Description = "Remove um funcionário do sistema",
+            OperationId = "DeleteFuncionario"
+        )]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<IActionResult> DeleteFuncionario([FromRoute] string usuarioFuncionario)
+        public async Task<IActionResult> DeleteFuncionario(
+            [FromRoute, SwaggerParameter("Nome de usuário do funcionário", Required = true)] string usuarioFuncionario)
         {
-            if (string.IsNullOrEmpty(usuarioFuncionario))
-                return BadRequest(new ErrorResponse { Message = "Usuario do funcionario e obrigatorio." });
-
             var response = await _funcionarioService.DeleteFuncionarioAsync(usuarioFuncionario);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
+                return NotFound(CreateErrorResponse(response.Message));
 
             return NoContent();
         }
-    }
 
-    public class FuncionarioResponse
-    {
-        public string UsuarioFuncionario { get; set; } = string.Empty;
-        public string Nome { get; set; } = string.Empty;
-        public string NomePatio { get; set; } = string.Empty;
-        public List<Link> Links { get; set; } = new List<Link>();
+        /// <summary>
+        /// Listar funcionários por pátio (V2)
+        /// </summary>
+        /// <remarks>
+        /// **VERSÃO 2** - Retorna todos os funcionários de um pátio específico com informações adicionais.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Lista de funcionários do pátio</returns>
+        [HttpGet("patio/{nomePatio}")]
+        [MapToApiVersion("2.0")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar funcionários por pátio (V2)",
+            Description = "Retorna funcionários de um pátio específico - Versão 2",
+            OperationId = "GetFuncionariosPorPatioV2"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Funcionario>))]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult<List<Funcionario>>> GetFuncionariosPorPatioV2(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
+        {
+            var response = await _funcionarioService.GetFuncionariosPorPatioAsync(nomePatio);
+            
+            if (!response.Success || response.Data == null || !response.Data.Any())
+                return NoContent();
+
+            return Ok(new
+            {
+                response.Data,
+                Message = $"Funcionários do pátio {nomePatio} recuperados com sucesso",
+                Total = response.Data.Count,
+                Timestamp = DateTime.Now,
+                Version = "2.0"
+            });
+        }
+
+        /// <summary>
+        /// Verificar se funcionário pertence ao pátio
+        /// </summary>
+        /// <remarks>
+        /// Verifica se um funcionário específico pertence a um determinado pátio.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="usuarioFuncionario">Nome de usuário do funcionário</param>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Status da verificação</returns>
+        [HttpGet("{usuarioFuncionario}/pertence-patio/{nomePatio}")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Verificar pátio do funcionário",
+            Description = "Verifica se funcionário pertence ao pátio",
+            OperationId = "VerificarFuncionarioNoPatio"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult> VerificarFuncionarioNoPatio(
+            [FromRoute, SwaggerParameter("Nome de usuário do funcionário", Required = true)] string usuarioFuncionario,
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
+        {
+            var response = await _funcionarioService.VerificarFuncionarioNoPatioAsync(usuarioFuncionario, nomePatio);
+            
+            if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
+            {
+                Data = new
+                {
+                    UsuarioFuncionario = usuarioFuncionario,
+                    NomePatio = nomePatio,
+                    Pertence = response.Data,
+                    Timestamp = DateTime.Now
+                },
+                Message = response.Data ? 
+                    "Funcionário pertence ao pátio" : 
+                    "Funcionário não pertence ao pátio",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
+        }
     }
 }

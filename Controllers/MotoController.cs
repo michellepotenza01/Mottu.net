@@ -1,279 +1,349 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Services;
 using Swashbuckle.AspNetCore.Annotations;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Swashbuckle.AspNetCore.Filters;
-using MottuApi.Examples;
-using MottuApi3.Enums;
+using MottuApi.Enums;
+using MottuApi.DTOs.ML;
 
 namespace MottuApi.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
     [Tags("Motos")]
     [Produces("application/json")]
-    public class MotoController : ControllerBase
+    [Consumes("application/json")]
+    public class MotoController : BaseController
     {
         private readonly MotoService _motoService;
+        private readonly MotoPredictionService _predictionService;
 
-        public MotoController(MotoService motoService)
+        public MotoController(MotoService motoService, MotoPredictionService predictionService)
         {
             _motoService = motoService;
+            _predictionService = predictionService;
         }
 
         /// <summary>
-        /// Retorna todas as motos com paginacao e filtros opcionais.
+        /// Listar todas as motos
         /// </summary>
-        /// <param name="page">Numero da pagina (padrao: 1)</param>
-        /// <param name="pageSize">Itens por pagina (padrao: 10, maximo: 50)</param>
-        /// <param name="status">Filtrar por status da moto</param>
-        /// <param name="setor">Filtrar por setor de conservacao</param>
+        /// <remarks>
+        /// Retorna todas as motos cadastradas no sistema com opção de filtro por status e setor.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="status">Filtrar por status da moto (opcional)</param>
+        /// <param name="setor">Filtrar por setor de conservação (opcional)</param>
+        /// <returns>Lista de motos</returns>
         [HttpGet]
-        [SwaggerOperation(Summary = "Obter todas as motos com paginacao")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<Moto>))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar motos",
+            Description = "Retorna todas as motos cadastradas",
+            OperationId = "GetMotos"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Moto>))]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetMotos(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] StatusMoto? status = null,
-            [FromQuery] SetorMoto? setor = null)
+        public async Task<ActionResult<List<Moto>>> GetMotos(
+            [FromQuery, SwaggerParameter("Status da moto")] StatusMoto? status = null,
+            [FromQuery, SwaggerParameter("Setor de conservação")] SetorMoto? setor = null)
         {
-            if (page < 1)
-                return BadRequest(new ErrorResponse { Message = "O numero da pagina deve ser maior que 0." });
-
-            if (pageSize < 1 || pageSize > 50)
-                return BadRequest(new ErrorResponse { Message = "O tamanho da pagina deve estar entre 1 e 50." });
-
-            var motosResponse = await _motoService.GetMotosPaginatedAsync(page, pageSize, status, setor);
-            var totalCountResponse = await _motoService.GetTotalMotosCountAsync(status, setor);
-
-            if (!motosResponse.Success || !totalCountResponse.Success)
-                return BadRequest(new ErrorResponse { Message = motosResponse.Message });
-
-            if (motosResponse.Data == null || !motosResponse.Data.Any())
-                return NoContent();
-
-            var totalCount = totalCountResponse.Data;
-            var totalPages = (int)System.Math.Ceiling(totalCount / (double)pageSize);
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-            var links = new List<Link>
-            {
-                new Link { Rel = "self", Href = $"{baseUrl}/api/moto?page={page}&pageSize={pageSize}", Method = "GET" },
-                new Link { Rel = "create", Href = $"{baseUrl}/api/moto", Method = "POST" }
-            };
-
-            if (page > 1)
-                links.Add(new Link { Rel = "prev", Href = $"{baseUrl}/api/moto?page={page - 1}&pageSize={pageSize}", Method = "GET" });
-
-            if (page < totalPages)
-                links.Add(new Link { Rel = "next", Href = $"{baseUrl}/api/moto?page={page + 1}&pageSize={pageSize}", Method = "GET" });
-
-            var response = new PagedResponse<Moto>
-            {
-                Data = motosResponse.Data,
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = totalPages,
-                Links = links
-            };
-
-            return Ok(response);
+            var response = await _motoService.GetMotosAsync(status, setor);
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Retorna uma moto especifica pela placa.
+        /// Obter moto específica
         /// </summary>
+        /// <remarks>
+        /// Retorna os detalhes de uma moto específica pela placa.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
         /// <param name="placa">Placa da moto no formato XXX-0000</param>
+        /// <returns>Detalhes da moto</returns>
         [HttpGet("{placa}")]
-        [SwaggerOperation(Summary = "Obter moto por placa")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MotoResponse))]
-        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Obter moto",
+            Description = "Retorna detalhes de uma moto específica",
+            OperationId = "GetMoto"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Moto))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> GetMotoByPlaca([FromRoute] string placa)
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult<Moto>> GetMoto(
+            [FromRoute, SwaggerParameter("Placa da moto", Required = true)] string placa)
         {
             if (string.IsNullOrEmpty(placa) || !System.Text.RegularExpressions.Regex.IsMatch(placa, @"^[A-Z]{3}-\d{4}$"))
-                return BadRequest(new ErrorResponse { Message = "Formato de placa inv�lido. Use: XXX-0000" });
+                return BadRequest(CreateErrorResponse("Formato de placa inválido. Use: XXX-0000"));
 
             var response = await _motoService.GetMotoAsync(placa);
-
-            if (!response.Success || response.Data == null)
-                return NotFound(new ErrorResponse { Message = response.Message });
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var motoResponse = new MotoResponse
-            {
-                Placa = response.Data.Placa,
-                Modelo = response.Data.Modelo,
-                Status = response.Data.Status,
-                Setor = response.Data.Setor,
-                NomePatio = response.Data.NomePatio,
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/moto/{placa}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/moto/{placa}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/moto/{placa}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/moto", Method = "GET" }
-                }
-            };
-
-            return Ok(motoResponse);
+            return HandleServiceResponse(response);
         }
 
         /// <summary>
-        /// Cria uma nova moto no sistema.
+        /// Criar nova moto
         /// </summary>
+        /// <remarks>
+        /// Cria uma nova moto no sistema.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="motoDto">Dados da nova moto</param>
+        /// <returns>Moto criada</returns>
         [HttpPost]
-        [SwaggerRequestExample(typeof(MotoDto), typeof(MotoExample))]
-        [SwaggerOperation(Summary = "Criar nova moto")]
-        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(MotoResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Criar moto",
+            Description = "Cadastra uma nova moto no sistema",
+            OperationId = "CreateMoto"
+        )]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Moto))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> CreateMoto([FromBody] MotoDto motoDto)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<Moto>> CreateMoto(
+            [FromBody, SwaggerRequestBody("Dados da moto", Required = true)] MotoDto motoDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+                return BadRequest(CreateErrorResponse("Dados da moto inválidos"));
 
             var response = await _motoService.CreateMotoAsync(motoDto);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrado"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
+                return BadRequest(CreateErrorResponse(response.Message));
 
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var motoResponse = new MotoResponse
-            {
-                Placa = response.Data.Placa,
-                Modelo = response.Data.Modelo,
-                Status = response.Data.Status,
-                Setor = response.Data.Setor,
-                NomePatio = response.Data.NomePatio,
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/moto", Method = "GET" }
-                }
-            };
-
-            return CreatedAtAction(
-                nameof(GetMotoByPlaca),
-                new { placa = response.Data.Placa },
-                motoResponse
+            return HandleCreatedResponse(
+                nameof(GetMoto),
+                new { placa = response.Data!.Placa, version = RequestedApiVersion },
+                response.Data,
+                "Moto criada com sucesso"
             );
         }
 
         /// <summary>
-        /// Atualiza uma moto existente.
+        /// Atualizar moto
         /// </summary>
-        /// <param name="placa">Placa da moto a ser atualizada</param>
-        /// <param name="motoDto">Dados atualizados da moto</param>
+        /// <remarks>
+        /// Atualiza os dados de uma moto existente.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="placa">Placa da moto</param>
+        /// <param name="motoDto">Novos dados da moto</param>
+        /// <returns>Moto atualizada</returns>
         [HttpPut("{placa}")]
-        [SwaggerOperation(Summary = "Atualizar moto existente")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MotoResponse))]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Atualizar moto",
+            Description = "Atualiza dados de uma moto existente",
+            OperationId = "UpdateMoto"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Moto))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
-        public async Task<ActionResult> UpdateMoto(
-            [FromRoute] string placa,
-            [FromBody] MotoDto motoDto)
+        public async Task<ActionResult<Moto>> UpdateMoto(
+            [FromRoute, SwaggerParameter("Placa da moto", Required = true)] string placa,
+            [FromBody, SwaggerRequestBody("Dados atualizados da moto", Required = true)] MotoDto motoDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Dados invalidos",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                });
+                return BadRequest(CreateErrorResponse("Dados de atualização inválidos"));
 
             if (placa != motoDto.Placa)
-                return BadRequest(new ErrorResponse { Message = "A placa da URL não corresponde à placa do corpo da requisicao." });
+                return BadRequest(CreateErrorResponse("A placa da URL não corresponde à placa do corpo da requisição"));
 
             var response = await _motoService.UpdateMotoAsync(placa, motoDto);
 
             if (!response.Success)
+                return BadRequest(CreateErrorResponse(response.Message));
+
+            return Ok(new
             {
-                if (response.Message.Contains("nao encontrada"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            var motoResponse = new MotoResponse
-            {
-                Placa = response.Data.Placa,
-                Modelo = response.Data.Modelo,
-                Status = response.Data.Status,
-                Setor = response.Data.Setor,
-                NomePatio = response.Data.NomePatio,
-                UsuarioFuncionario = response.Data.UsuarioFuncionario,
-                Links = new List<Link>
-                {
-                    new Link { Rel = "self", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "GET" },
-                    new Link { Rel = "update", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "PUT" },
-                    new Link { Rel = "delete", Href = $"{baseUrl}/api/moto/{response.Data.Placa}", Method = "DELETE" },
-                    new Link { Rel = "all", Href = $"{baseUrl}/api/moto", Method = "GET" }
-                }
-            };
-
-            return Ok(motoResponse);
+                Data = response.Data,
+                Message = "Moto atualizada com sucesso",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion
+            });
         }
 
         /// <summary>
-        /// Exclui uma moto do sistema.
+        /// Excluir moto
         /// </summary>
-        /// <param name="placa">Placa da moto a ser exclu�da</param>
+        /// <remarks>
+        /// Remove uma moto do sistema.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="placa">Placa da moto</param>
+        /// <returns>Confirmação de exclusão</returns>
         [HttpDelete("{placa}")]
-        [SwaggerOperation(Summary = "Excluir moto")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Excluir moto",
+            Description = "Remove uma moto do sistema",
+            OperationId = "DeleteMoto"
+        )]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
-        public async Task<IActionResult> DeleteMoto([FromRoute] string placa)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<IActionResult> DeleteMoto(
+            [FromRoute, SwaggerParameter("Placa da moto", Required = true)] string placa)
         {
             if (string.IsNullOrEmpty(placa) || !System.Text.RegularExpressions.Regex.IsMatch(placa, @"^[A-Z]{3}-\d{4}$"))
-                return BadRequest(new ErrorResponse { Message = "Formato de placa invalido. Use: XXX-0000" });
+                return BadRequest(CreateErrorResponse("Formato de placa inválido. Use: XXX-0000"));
 
             var response = await _motoService.DeleteMotoAsync(placa);
 
             if (!response.Success)
-            {
-                if (response.Message.Contains("nao encontrada"))
-                    return NotFound(new ErrorResponse { Message = response.Message });
-
-                return BadRequest(new ErrorResponse { Message = response.Message });
-            }
+                return NotFound(CreateErrorResponse(response.Message));
 
             return NoContent();
         }
-    }
 
-    public class MotoResponse
-    {
-        public string Placa { get; set; } = string.Empty;
-        public ModeloMoto Modelo { get; set; }
-        public StatusMoto Status { get; set; }
-        public SetorMoto Setor { get; set; }
-        public string NomePatio { get; set; } = string.Empty;
-        public string UsuarioFuncionario { get; set; } = string.Empty;
-        public List<Link> Links { get; set; } = new List<Link>();
+        /// <summary>
+        /// Prever necessidade de manutenção (ML.NET)
+        /// </summary>
+        /// <remarks>
+        /// Utiliza machine learning para prever se uma moto precisa de manutenção com base em seus dados.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <param name="placa">Placa da moto</param>
+        /// <returns>Resultado da predição de manutenção</returns>
+        [HttpGet("{placa}/prever-manutencao")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Prever manutenção",
+            Description = "Utiliza ML.NET para prever necessidade de manutenção",
+            OperationId = "PreverManutencao"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ErrorResponse))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ErrorResponse))]
+        public async Task<ActionResult> PreverManutencao(
+            [FromRoute, SwaggerParameter("Placa da moto", Required = true)] string placa)
+        {
+            if (string.IsNullOrEmpty(placa))
+                return BadRequest(CreateErrorResponse("Placa é obrigatória"));
+
+            var predictionResponse = await _motoService.PreverManutencaoAsync(placa);
+            var motoResponse = await _motoService.GetMotoAsync(placa);
+
+            if (!predictionResponse.Success || !motoResponse.Success)
+                return NotFound(CreateErrorResponse(predictionResponse.Message));
+
+            var moto = motoResponse.Data!;
+            var prediction = predictionResponse.Data!;
+            var fatores = _predictionService.ObterFatoresInfluentes(moto, prediction);
+            var recomendacao = _predictionService.ObterRecomendacaoManutencao(prediction);
+
+            var resultado = new MotoManutencaoResponseDto
+            {
+                Placa = placa,
+                PrecisaManutencao = prediction.PrecisaManutencao,
+                Probabilidade = prediction.Probability,
+                Score = prediction.Score,
+                Recomendacao = recomendacao,
+                NivelUrgencia = prediction.NivelUrgencia,
+                Fatores = fatores,
+                Timestamp = DateTime.Now
+            };
+
+            return Ok(new
+            {
+                Data = resultado,
+                Message = "Predição de manutenção realizada com sucesso",
+                Timestamp = DateTime.Now,
+                Version = RequestedApiVersion,
+                ModeloML = "Regressão Logística com normalização de features"
+            });
+        }
+
+        /// <summary>
+        /// Listar motos por pátio (V2)
+        /// </summary>
+        /// <remarks>
+        /// **VERSÃO 2** - Retorna todas as motos de um pátio específico com estatísticas.
+        /// 
+        /// **Roles:** Nenhuma (público)
+        /// </remarks>
+        /// <param name="nomePatio">Nome do pátio</param>
+        /// <returns>Lista de motos do pátio</returns>
+        [HttpGet("patio/{nomePatio}")]
+        [MapToApiVersion("2.0")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Listar motos por pátio (V2)",
+            Description = "Retorna motos de um pátio específico com estatísticas - Versão 2",
+            OperationId = "GetMotosPorPatioV2"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult> GetMotosPorPatioV2(
+            [FromRoute, SwaggerParameter("Nome do pátio", Required = true)] string nomePatio)
+        {
+            var response = await _motoService.GetMotosPorPatioAsync(nomePatio);
+            
+            if (!response.Success || response.Data == null || !response.Data.Any())
+                return NoContent();
+
+            var motos = response.Data;
+            var estatisticas = new
+            {
+                TotalMotos = motos.Count,
+                MotosDisponiveis = motos.Count(m => m.Status == StatusMoto.Disponivel),
+                MotosAlugadas = motos.Count(m => m.Status == StatusMoto.Alugada),
+                MotosManutencao = motos.Count(m => m.Status == StatusMoto.Manutencao),
+                MotosPrecisandoManutencao = motos.Count(m => m.PrecisaManutencao == 1),
+                PercentualDisponiveis = motos.Count > 0 ? 
+                    Math.Round((double)motos.Count(m => m.Status == StatusMoto.Disponivel) / motos.Count * 100, 2) : 0
+            };
+
+            return Ok(new
+            {
+                Data = new
+                {
+                    Motos = motos,
+                    Estatisticas = estatisticas
+                },
+                Message = $"Motos do pátio {nomePatio} recuperadas com sucesso",
+                Timestamp = DateTime.Now,
+                Version = "2.0"
+            });
+        }
+
+        /// <summary>
+        /// Listar motos que precisam de manutenção
+        /// </summary>
+        /// <remarks>
+        /// Retorna todas as motos que foram identificadas como precisando de manutenção.
+        /// 
+        /// **Roles:** Funcionario, Admin
+        /// </remarks>
+        /// <returns>Lista de motos para manutenção</returns>
+        [HttpGet("precisando-manutencao")]
+        [Authorize(Roles = "Funcionario,Admin")]
+        [SwaggerOperation(
+            Summary = "Listar motos para manutenção",
+            Description = "Retorna motos que precisam de manutenção",
+            OperationId = "GetMotosPrecisandoManutencao"
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<Moto>))]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult<List<Moto>>> GetMotosPrecisandoManutencao()
+        {
+            var response = await _motoService.GetMotosPrecisandoManutencaoAsync();
+            return HandleServiceResponse(response);
+        }
     }
 }

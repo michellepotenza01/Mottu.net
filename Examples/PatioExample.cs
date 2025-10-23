@@ -9,9 +9,9 @@ namespace MottuApi.Examples
         {
             return new PatioDto
             {
-                NomePatio = "Patio Osasco",
-                Localizacao = "Av. Bussocaba, 950 - Osasco-Sp",
-                VagasTotais = 80
+                NomePatio = "Patio Centro",
+                Localizacao = "Av. Paulista, 1000 - São Paulo-SP",
+                VagasTotais = 50
             };
         }
     }

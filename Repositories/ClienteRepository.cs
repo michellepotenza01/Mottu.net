@@ -1,9 +1,6 @@
 using MottuApi.Data;
 using MottuApi.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MottuApi.Repositories
 {
@@ -16,23 +13,16 @@ namespace MottuApi.Repositories
             _context = context;
         }
 
+        // ✅ TODOS OS MÉTODOS NORMAIS COM LINQ
         public async Task<List<Cliente>> GetAllAsync()
         {
             return await _context.Clientes
                 .Include(c => c.Moto)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<List<Cliente>> GetPaginatedAsync(int page, int pageSize)
-        {
-            return await _context.Clientes
-                .Include(c => c.Moto)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-        }
-
-        public async Task<Cliente> GetByIdAsync(string usuarioCliente)
+        public async Task<Cliente?> GetByIdAsync(string usuarioCliente)
         {
             return await _context.Clientes
                 .Include(c => c.Moto)
@@ -59,12 +49,34 @@ namespace MottuApi.Repositories
 
         public async Task<bool> ExistsAsync(string usuarioCliente)
         {
-            return await _context.Clientes.AnyAsync(c => c.UsuarioCliente == usuarioCliente);
+            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
+            try
+            {
+                var sql = "SELECT COUNT(*) FROM \"Clientes\" WHERE \"UsuarioCliente\" = :p0";
+                var count = await _context.Database.SqlQueryRaw<int>(sql, usuarioCliente).FirstOrDefaultAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
-        public async Task<int> GetTotalCountAsync()
+        public async Task<Cliente?> GetByMotoPlacaAsync(string motoPlaca)
         {
-            return await _context.Clientes.CountAsync();
+            return await _context.Clientes
+                .Include(c => c.Moto)
+                .FirstOrDefaultAsync(c => c.MotoPlaca == motoPlaca);
+        }
+
+        public async Task<bool> RegistrarManutencaoAsync(string usuarioCliente)
+        {
+            var cliente = await GetByIdAsync(usuarioCliente);
+            if (cliente is null) return false;
+
+            cliente.RegistrarManutencao();
+            await UpdateAsync(cliente);
+            return true;
         }
     }
 }

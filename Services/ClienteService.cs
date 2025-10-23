@@ -1,8 +1,7 @@
 using MottuApi.Models;
 using MottuApi.DTOs;
 using MottuApi.Repositories;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using MottuApi.Models.Common;
 
 namespace MottuApi.Services
 {
@@ -10,90 +9,173 @@ namespace MottuApi.Services
     {
         private readonly ClienteRepository _clienteRepository;
         private readonly MotoRepository _motoRepository;
+        private readonly AuthService _authService;
 
-        public ClienteService(ClienteRepository clienteRepository, MotoRepository motoRepository)
+        public ClienteService(ClienteRepository clienteRepository, MotoRepository motoRepository, AuthService authService)
         {
             _clienteRepository = clienteRepository;
             _motoRepository = motoRepository;
+            _authService = authService;
         }
 
         public async Task<ServiceResponse<List<Cliente>>> GetClientesAsync()
         {
-            var clientes = await _clienteRepository.GetAllAsync();
-            return new ServiceResponse<List<Cliente>>(clientes);
+            try
+            {
+                var clientes = await _clienteRepository.GetAllAsync();
+                return ServiceResponse<List<Cliente>>.Ok(clientes, "Clientes recuperados com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<List<Cliente>>.Error($"Erro ao buscar clientes: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Cliente>> GetClienteByIdAsync(string usuarioCliente)
         {
-            var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
-            if (cliente == null)
-                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente nao encontrado" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(usuarioCliente))
+                    return ServiceResponse<Cliente>.Error("Usuário do cliente é obrigatório");
 
-            return new ServiceResponse<Cliente>(cliente);
+                var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
+                return cliente is null 
+                    ? ServiceResponse<Cliente>.NotFound("Cliente")
+                    : ServiceResponse<Cliente>.Ok(cliente, "Cliente encontrado com sucesso");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Cliente>.Error($"Erro ao buscar cliente: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Cliente>> CreateClienteAsync(ClienteDto clienteDto)
         {
-            if (!string.IsNullOrEmpty(clienteDto.MotoPlaca))
+            try
             {
-                var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
-                if (moto == null)
-                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto nao encontrada" };
+                if (await _clienteRepository.ExistsAsync(clienteDto.UsuarioCliente))
+                    return ServiceResponse<Cliente>.Error("Usuário já cadastrado");
+
+                if (!string.IsNullOrEmpty(clienteDto.MotoPlaca))
+                {
+                    var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
+                    if (moto is null)
+                        return ServiceResponse<Cliente>.NotFound("Moto");
+
+                    var motoAssociada = await _clienteRepository.GetByMotoPlacaAsync(clienteDto.MotoPlaca);
+                    if (motoAssociada is not null)
+                        return ServiceResponse<Cliente>.Error("Moto já está associada a outro cliente");
+                }
+
+                var cliente = new Cliente
+                {
+                    UsuarioCliente = clienteDto.UsuarioCliente.Trim(),
+                    Nome = clienteDto.Nome.Trim(),
+                    SenhaHash = _authService.HashPassword(clienteDto.Senha),
+                    MotoPlaca = clienteDto.MotoPlaca?.Trim(),
+                    DataCriacao = DateTime.Now,
+                    DataAtualizacao = DateTime.Now
+                };
+
+                await _clienteRepository.AddAsync(cliente);
+                return ServiceResponse<Cliente>.Ok(cliente, "Cliente criado com sucesso!");
             }
-
-            var cliente = new Cliente
+            catch (Exception ex)
             {
-                UsuarioCliente = clienteDto.UsuarioCliente,
-                Nome = clienteDto.Nome,
-                Senha = clienteDto.Senha,
-                MotoPlaca = clienteDto.MotoPlaca
-            };
-
-            await _clienteRepository.AddAsync(cliente);
-            return new ServiceResponse<Cliente>(cliente, "Cliente criado com sucesso!");
+                return ServiceResponse<Cliente>.Error($"Erro ao criar cliente: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<Cliente>> UpdateClienteAsync(string usuarioCliente, ClienteDto clienteDto)
         {
-            var clienteExistente = await _clienteRepository.GetByIdAsync(usuarioCliente);
-            if (clienteExistente == null)
-                return new ServiceResponse<Cliente> { Success = false, Message = "Cliente nao encontrado" };
-
-            if (!string.IsNullOrEmpty(clienteDto.MotoPlaca))
+            try
             {
-                var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
-                if (moto == null)
-                    return new ServiceResponse<Cliente> { Success = false, Message = "Moto nao encontrada" };
+                var clienteExistente = await _clienteRepository.GetByIdAsync(usuarioCliente);
+                if (clienteExistente is null)
+                    return ServiceResponse<Cliente>.NotFound("Cliente");
+
+                if (!string.IsNullOrEmpty(clienteDto.MotoPlaca))
+                {
+                    var moto = await _motoRepository.GetByIdAsync(clienteDto.MotoPlaca);
+                    if (moto is null)
+                        return ServiceResponse<Cliente>.NotFound("Moto");
+
+                    var motoAssociada = await _clienteRepository.GetByMotoPlacaAsync(clienteDto.MotoPlaca);
+                    if (motoAssociada is not null && motoAssociada.UsuarioCliente != usuarioCliente)
+                        return ServiceResponse<Cliente>.Error("Moto já está associada a outro cliente");
+                }
+
+                clienteExistente.Nome = clienteDto.Nome.Trim();
+                
+                if (!string.IsNullOrEmpty(clienteDto.Senha))
+                    clienteExistente.SenhaHash = _authService.HashPassword(clienteDto.Senha);
+                
+                clienteExistente.MotoPlaca = clienteDto.MotoPlaca?.Trim();
+                clienteExistente.DataAtualizacao = DateTime.Now;
+
+                await _clienteRepository.UpdateAsync(clienteExistente);
+                return ServiceResponse<Cliente>.Ok(clienteExistente, "Cliente atualizado com sucesso!");
             }
-
-            clienteExistente.Nome = clienteDto.Nome;
-            clienteExistente.Senha = clienteDto.Senha;
-            clienteExistente.MotoPlaca = clienteDto.MotoPlaca;
-
-            await _clienteRepository.UpdateAsync(clienteExistente);
-            return new ServiceResponse<Cliente>(clienteExistente, "Cliente atualizado com sucesso!");
+            catch (Exception ex)
+            {
+                return ServiceResponse<Cliente>.Error($"Erro ao atualizar cliente: {ex.Message}");
+            }
         }
 
         public async Task<ServiceResponse<bool>> DeleteClienteAsync(string usuarioCliente)
         {
-            var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
-            if (cliente == null)
-                return new ServiceResponse<bool> { Success = false, Message = "Cliente nao encontrado" };
+            try
+            {
+                if (string.IsNullOrWhiteSpace(usuarioCliente))
+                    return ServiceResponse<bool>.Error("Usuário do cliente é obrigatório");
 
-            await _clienteRepository.DeleteAsync(cliente);
-            return new ServiceResponse<bool>(true, "Cliente excluido com sucesso!");
+                var cliente = await _clienteRepository.GetByIdAsync(usuarioCliente);
+                if (cliente is null)
+                    return ServiceResponse<bool>.NotFound("Cliente");
+
+                await _clienteRepository.DeleteAsync(cliente);
+                return ServiceResponse<bool>.Ok(true, "Cliente excluído com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<bool>.Error($"Erro ao excluir cliente: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<List<Cliente>>> GetClientesPaginatedAsync(int page, int pageSize)
+        public async Task<ServiceResponse<Cliente>> GetClientePorMotoAsync(string motoPlaca)
         {
-            var clientes = await _clienteRepository.GetPaginatedAsync(page, pageSize);
-            return new ServiceResponse<List<Cliente>>(clientes);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(motoPlaca))
+                    return ServiceResponse<Cliente>.Error("Placa da moto é obrigatória");
+
+                var cliente = await _clienteRepository.GetByMotoPlacaAsync(motoPlaca);
+                return cliente is null 
+                    ? ServiceResponse<Cliente>.NotFound("Cliente para esta moto")
+                    : ServiceResponse<Cliente>.Ok(cliente, "Cliente encontrado pela moto");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<Cliente>.Error($"Erro ao buscar cliente pela moto: {ex.Message}");
+            }
         }
 
-        public async Task<ServiceResponse<int>> GetTotalClientesCountAsync()
+        public async Task<ServiceResponse<bool>> AtualizarHistoricoManutencaoAsync(string usuarioCliente)
         {
-            var count = await _clienteRepository.GetTotalCountAsync();
-            return new ServiceResponse<int>(count);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(usuarioCliente))
+                    return ServiceResponse<bool>.Error("Usuário do cliente é obrigatório");
+
+                var sucesso = await _clienteRepository.RegistrarManutencaoAsync(usuarioCliente);
+                return sucesso 
+                    ? ServiceResponse<bool>.Ok(true, "Histórico de manutenção atualizado")
+                    : ServiceResponse<bool>.NotFound("Cliente");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<bool>.Error($"Erro ao atualizar histórico: {ex.Message}");
+            }
         }
     }
 }

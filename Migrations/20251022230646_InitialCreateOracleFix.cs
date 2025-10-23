@@ -1,11 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace MottuApi3.Data.Migrations
+namespace MottuApi.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialCreateOracleFix : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -30,8 +31,9 @@ namespace MottuApi3.Data.Migrations
                 {
                     UsuarioFuncionario = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false),
                     Nome = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
-                    Senha = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
-                    NomePatio = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false)
+                    SenhaHash = table.Column<string>(type: "VARCHAR2(256)", maxLength: 256, nullable: false),
+                    NomePatio = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false),
+                    Role = table.Column<string>(type: "NVARCHAR2(20)", maxLength: 20, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -53,7 +55,14 @@ namespace MottuApi3.Data.Migrations
                     Status = table.Column<int>(type: "NUMBER(10)", nullable: false),
                     Setor = table.Column<int>(type: "NUMBER(10)", nullable: false),
                     NomePatio = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false),
-                    UsuarioFuncionario = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false)
+                    UsuarioFuncionario = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false),
+                    Quilometragem = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    DataUltimaRevisao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: true),
+                    QuantidadeRevisoes = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    PrecisaManutencao = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    ProbabilidadeManutencao = table.Column<float>(type: "BINARY_FLOAT", nullable: false),
+                    DataCriacao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false),
+                    DataAtualizacao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -78,8 +87,12 @@ namespace MottuApi3.Data.Migrations
                 {
                     UsuarioCliente = table.Column<string>(type: "NVARCHAR2(50)", maxLength: 50, nullable: false),
                     Nome = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
-                    Senha = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
-                    MotoPlaca = table.Column<string>(type: "NVARCHAR2(8)", nullable: true)
+                    SenhaHash = table.Column<string>(type: "VARCHAR2(256)", maxLength: 256, nullable: false),
+                    MotoPlaca = table.Column<string>(type: "NVARCHAR2(8)", maxLength: 8, nullable: true),
+                    DataUltimaManutencao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: true),
+                    QuantidadeManutencoes = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    DataCriacao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false),
+                    DataAtualizacao = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -88,8 +101,7 @@ namespace MottuApi3.Data.Migrations
                         name: "FK_Clientes_Motos_MotoPlaca",
                         column: x => x.MotoPlaca,
                         principalTable: "Motos",
-                        principalColumn: "Placa",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Placa");
                 });
 
             migrationBuilder.CreateIndex(
