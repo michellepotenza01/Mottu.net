@@ -11,10 +11,10 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuração da URL - usando apenas uma porta para evitar conflitos
 builder.WebHost.UseUrls("http://localhost:5147");
 builder.Environment.EnvironmentName = "Development";
 
@@ -47,6 +47,8 @@ builder.Services.AddScoped<MotoPredictionService>();
 
 builder.Services.AddScoped<IDataSeederService, DataSeederService>();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<MottuDbContext>(
         name: "database",
@@ -63,6 +65,11 @@ builder.Services.AddHealthChecks()
     .AddCheck("api", 
         () => HealthCheckResult.Healthy("API respondendo"),
         tags: new[] { "api" });
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 builder.Services.AddApiVersioning(options =>
 {
@@ -225,6 +232,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseResponseCompression();
+
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -262,7 +271,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler("/error");
 
-// ✅ CORREÇÃO: Adicionar endpoint raiz com página HTML
 app.MapGet("/", () => Results.Content("""
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -271,104 +279,405 @@ app.MapGet("/", () => Results.Content("""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mottu API - Sistema de Gerenciamento de Pátio de Motos</title>
     <style>
+        :root {
+            --mottu-green: #00D46A;
+            --mottu-dark: #1A1A1A;
+            --mottu-black: #000000;
+            --mottu-white: #FFFFFF;
+            --mottu-gray: #F5F5F5;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, var(--mottu-black) 0%, var(--mottu-dark) 100%);
+            color: var(--mottu-white);
             min-height: 100vh;
+            line-height: 1.6;
         }
+        
         .container { 
-            max-width: 800px; 
+            max-width: 1200px; 
             margin: 0 auto; 
-            background: rgba(255,255,255,0.1); 
-            padding: 30px; 
-            border-radius: 15px; 
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 40px 20px;
         }
-        h1 { 
-            color: white; 
-            text-align: center; 
+        
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px 20px;
+            background: rgba(0, 212, 106, 0.1);
+            border-radius: 20px;
+            border: 1px solid var(--mottu-green);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0,212,106,0.1) 0%, rgba(0,0,0,0) 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        .logo {
+            font-size: 4em;
+            font-weight: bold;
+            color: var(--mottu-green);
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0, 212, 106, 0.5);
+        }
+        
+        .tagline {
+            font-size: 1.4em;
+            color: var(--mottu-white);
+            opacity: 0.9;
             margin-bottom: 30px;
-            font-size: 2.5em;
         }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
         .card { 
-            background: rgba(255,255,255,0.2); 
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 10px; 
-            border-left: 5px solid #4CAF50;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid var(--mottu-green);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 106, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .card:hover::before {
+            left: 100%;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 212, 106, 0.2);
+        }
+        
+        .card h2 {
+            color: var(--mottu-green);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card h2 i {
+            font-size: 1.2em;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature { 
+            background: rgba(0, 212, 106, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 106, 0.3);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature:hover {
+            background: rgba(0, 212, 106, 0.2);
+            transform: scale(1.05);
+        }
+        
         .btn { 
-            display: inline-block; 
-            padding: 12px 24px; 
-            background: #4CAF50; 
-            color: white; 
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px; 
+            background: var(--mottu-green); 
+            color: var(--mottu-black); 
             text-decoration: none; 
-            border-radius: 5px; 
+            border-radius: 8px; 
             margin: 5px;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            border: 2px solid transparent;
         }
+        
         .btn:hover { 
-            background: #45a049; 
+            background: transparent;
+            color: var(--mottu-green);
+            border-color: var(--mottu-green);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 212, 106, 0.3);
         }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--mottu-green);
+            border: 2px solid var(--mottu-green);
+        }
+        
+        .btn-outline:hover {
+            background: var(--mottu-green);
+            color: var(--mottu-black);
+        }
+        
         .links { 
             text-align: center; 
             margin-top: 30px;
         }
-        .feature { 
-            margin: 10px 0; 
-            padding: 10px; 
-            background: rgba(255,255,255,0.1); 
-            border-radius: 5px;
+        
+        .credential-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid var(--mottu-green);
+        }
+        
+        .credential-box strong {
+            color: var(--mottu-green);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: var(--mottu-green);
+            color: var(--mottu-black);
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .tech-item {
+            background: rgba(0, 212, 106, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 212, 106, 0.3);
+            font-size: 0.9em;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .logo {
+                font-size: 2.5em;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1> Mottu API</h1>
-        <p style="text-align: center; font-size: 1.2em;">Sistema de Gerenciamento de Pátio de Motos</p>
+        <div class="header">
+            <div class="logo">MOTTU</div>
+            <div class="tagline">Sistema Avançado de Gerenciamento de Pátio de Motos</div>
+            <p>API RESTful desenvolvida em .NET com arquitetura moderna e recursos avançados</p>
+        </div>
         
-        <div class="card">
-            <h2> Documentação</h2>
-            <p>Acesse a documentação interativa da API para explorar todos os endpoints disponíveis.</p>
-            <div class="links">
-                <a href="/swagger" class="btn">Swagger UI</a>
+        <div class="grid">
+            <div class="card">
+                <h2>Documentação Interativa</h2>
+                <p>Explore todos os endpoints da API com documentação completa e exemplos práticos.</p>
+                <div class="tech-stack">
+                    <span class="tech-item">Swagger UI</span>
+                    <span class="tech-item">OpenAPI 3.0</span>
+                    <span class="tech-item">Exemplos</span>
+                </div>
+                <div class="links">
+                    <a href="/swagger" class="btn">
+                        <i></i> Acessar Swagger
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2> Recursos da API</h2>
+                <div class="feature-grid">
+                    <div class="feature">
+                        <strong>v1 (Estável)</strong>
+                        <div>CRUD Completo</div>
+                        <div>JWT Authentication</div>
+                    </div>
+                    <div class="feature">
+                        <strong>v2 (Avançada)</strong>
+                        <div>ML.NET</div>
+                        <div>Estatísticas</div>
+                    </div>
+                    <div class="feature">
+                        <strong>Monitoramento</strong>
+                        <div>Health Checks</div>
+                        <div>Performance</div>
+                    </div>
+                    <div class="feature">
+                        <strong>REST</strong>
+                        <div>HATEOAS</div>
+                        <div>Paginação</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2> Autenticação & Segurança</h2>
+                <p>Sistema de autenticação JWT com diferentes níveis de acesso:</p>
+                
+                <div class="credential-box">
+                    <strong> Administrador</strong><br>
+                    Usuário: <code>admin_principal</code><br>
+                    Senha: <code>Admin123!</code><br>
+                    <span class="status-badge">Acesso Total</span>
+                </div>
+                
+                <div class="credential-box">
+                    <strong> Funcionário</strong><br>
+                    Usuário: <code>funcionario_teste</code><br>
+                    Senha: <code>Func123!</code><br>
+                    <span class="status-badge">Acesso Limitado</span>
+                </div>
+                
+                <div class="links">
+                    <a href="/swagger#/Auth" class="btn btn-outline">
+                        <i></i> Testar Autenticação
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2> Domínio da Aplicação</h2>
+                <p><strong>Sistema de Gerenciamento de Pátio de Motos:</strong></p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>Cadastro de Pátios e Vagas</li>
+                    <li>Gestão de Funcionários</li>
+                    <li>Controle de Frota de Motos</li>
+                    <li>Cadastro de Clientes</li>
+                    <li>Controle de Status (Disponível/Alugada/Manutenção)</li>
+                    <li>Predição de Manutenção com ML.NET</li>
+                </ul>
+                <div class="tech-stack">
+                    <span class="tech-item">.NET 8</span>
+                    <span class="tech-item">Oracle</span>
+                    <span class="tech-item">Entity Framework</span>
+                    <span class="tech-item">ML.NET</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2> Monitoramento</h2>
+                <p>Acompanhe a saúde e performance da aplicação em tempo real.</p>
+                <div class="feature-grid">
+                    <div class="feature">
+                        <strong> Database</strong>
+                        <div>Oracle Connection</div>
+                    </div>
+                    <div class="feature">
+                        <strong> Memória</strong>
+                        <div>Uso de Recursos</div>
+                    </div>
+                    <div class="feature">
+                        <strong> API</strong>
+                        <div>Status da Aplicação</div>
+                    </div>
+                </div>
+                <div class="links">
+                    <a href="/health" class="btn btn-outline">
+                        <i></i> Health Check
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2> Links Rápidos</h2>
+                <p>Acesse rapidamente os principais recursos da API:</p>
+                <div class="links">
+                    <a href="/api" class="btn">
+                        <i></i> API Info
+                    </a>
+                    <a href="/health" class="btn">
+                        <i></i> Health Status
+                    </a>
+                    <a href="/swagger" class="btn">
+                        <i></i> Documentação
+                    </a>
+                </div>
+                <div style="margin-top: 20px;">
+                    <p><strong>Versões disponíveis:</strong></p>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <span class="tech-item">v1 (Estável)</span>
+                        <span class="tech-item">v2 (Avançada)</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="card">
-            <h2> Recursos da API</h2>
-            <div class="feature"><strong>Versão 1 (Estável):</strong> CRUD completo, Autenticação JWT</div>
-            <div class="feature"><strong>Versão 2 (Avançada):</strong> ML.NET, Paginação, Estatísticas</div>
-            <div class="feature"><strong>Health Checks:</strong> Monitoramento do sistema</div>
-            <div class="feature"><strong>HATEOAS:</strong> Navegação por links</div>
-        </div>
-
-        <div class="card">
-            <h2> Links Úteis</h2>
-            <div class="links">
-                <a href="/api" class="btn">API Info</a>
-                <a href="/health" class="btn">Health Check</a>
-                <a href="/swagger" class="btn">Documentação</a>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2> Credenciais de Teste</h2>
-            <p><strong>Admin:</strong> usuario=admin_principal, senha=Admin123!</p>
-            <p><strong>Funcionário:</strong> usuario=funcionario_teste, senha=Func123!</p>
+        <div class="footer">
+            <p><strong>Mottu API</strong> - Sistema de Gerenciamento de Pátio de Motos</p>
+            <p>Desenvolvido com .NET 8 | Arquitetura RESTful | Boas Práticas API</p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.7;">
+                Health Checks |  Versionamento |  JWT Security |  ML.NET |  HATEOAS |  Swagger
+            </p>
         </div>
     </div>
 </body>
 </html>
-""", "text/html")).WithTags("Home");
+""", "text/html")).WithTags("Home").WithName("HomePage");
 
 app.MapGet("/index.html", () => Results.Redirect("/")).WithTags("Home");
 
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = async (context, report) =>
     {
@@ -376,18 +685,56 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
         var result = System.Text.Json.JsonSerializer.Serialize(new
         {
             status = report.Status.ToString(),
+            environment = app.Environment.EnvironmentName,
+            timestamp = DateTime.UtcNow,
+            uptime = DateTime.UtcNow - System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime(),
             checks = report.Entries.Select(e => new
             {
                 name = e.Key,
                 status = e.Value.Status.ToString(),
                 description = e.Value.Description,
-                duration = e.Value.Duration.TotalMilliseconds
+                duration = $"{e.Value.Duration.TotalMilliseconds}ms",
+                data = e.Value.Data
             }),
-            totalDuration = report.TotalDuration.TotalMilliseconds
+            totalDuration = $"{report.TotalDuration.TotalMilliseconds}ms"
+        }, new System.Text.Json.JsonSerializerOptions 
+        { 
+            WriteIndented = true 
         });
         await context.Response.WriteAsync(result);
     }
-});
+}).WithMetadata(new EndpointNameMetadata("health-check"));
+
+app.MapGet("/api/info", () => 
+{
+    var assembly = Assembly.GetExecutingAssembly();
+    return new
+    {
+        application = "Mottu API - Sistema de Gerenciamento de Pátio de Motos",
+        version = assembly.GetName().Version?.ToString() ?? "1.0.0",
+        environment = app.Environment.EnvironmentName,
+        timestamp = DateTime.UtcNow,
+        features = new[]
+        {
+            "JWT Authentication",
+            "ML.NET Integration", 
+            "Health Checks",
+            "API Versioning",
+            "HATEOAS Links",
+            "Pagination",
+            "Swagger Documentation",
+            "Oracle Database",
+            "Response Compression"
+        },
+        links = new[]
+        {
+            new { rel = "documentation", href = "/swagger", method = "GET" },
+            new { rel = "health", href = "/health", method = "GET" },
+            new { rel = "api-info", href = "/api", method = "GET" },
+            new { rel = "home", href = "/", method = "GET" }
+        }
+    };
+}).WithTags("API Info").WithName("GetApiInfo");
 
 app.UseCors("AllowAll");
 app.UseRouting();
@@ -399,12 +746,23 @@ app.MapControllers();
 app.MapGet("/api", () => new
 {
     message = "Bem-vindo à Mottu API - Sistema de Gerenciamento de Pátio de Motos",
+    description = "API RESTful desenvolvida em .NET 8 com arquitetura moderna e boas práticas",
     documentation = "/swagger",
     health = "/health",
     home = "/",
     versions = new[] { 
-        new { version = "v1", description = "API Estável - Endpoints básicos" },
-        new { version = "v2", description = "Nova Versão - Recursos avançados com ML.NET" }
+        new { 
+            version = "v1", 
+            status = "stable",
+            description = "API Estável - Endpoints básicos de CRUD",
+            path = "/api/v1"
+        },
+        new { 
+            version = "v2", 
+            status = "advanced",
+            description = "Nova Versão - Recursos avançados com ML.NET",
+            path = "/api/v2"
+        }
     },
     features = new[] {
         "JWT Authentication",
@@ -413,32 +771,44 @@ app.MapGet("/api", () => new
         "API Versioning",
         "HATEOAS Links",
         "Pagination",
-        "Swagger Documentation"
+        "Swagger Documentation",
+        "Oracle Database",
+        "Response Compression"
     },
-    timestamp = DateTime.Now
+    timestamp = DateTime.UtcNow,
+    _links = new[]
+    {
+        new { rel = "self", href = "/api", method = "GET" },
+        new { rel = "documentation", href = "/swagger", method = "GET" },
+        new { rel = "health", href = "/health", method = "GET" },
+        new { rel = "home", href = "/", method = "GET" },
+        new { rel = "api-info", href = "/api/info", method = "GET" }
+    }
 }).WithTags("API Info");
 
 Console.WriteLine("==============================================");
-Console.WriteLine("MOTTU API INICIADA COM SUCESSO!");
+Console.WriteLine(" MOTTU API INICIADA COM SUCESSO!");
 Console.WriteLine("==============================================");
-Console.WriteLine($"URL Principal: http://localhost:5147");
-Console.WriteLine($"Página HTML: http://localhost:5147/index.html");
-Console.WriteLine($"Swagger: http://localhost:5147/swagger");
-Console.WriteLine($"Health Check: http://localhost:5147/health");
-Console.WriteLine($"API Info: http://localhost:5147/api");
+Console.WriteLine($" URL Principal: http://localhost:5147");
+Console.WriteLine($" Página Inicial: http://localhost:5147/");
+Console.WriteLine($" Swagger Docs: http://localhost:5147/swagger");
+Console.WriteLine($" Health Check: http://localhost:5147/health");
+Console.WriteLine($" API Info: http://localhost:5147/api");
 Console.WriteLine("==============================================");
 Console.WriteLine("CREDENCIAIS PARA TESTE:");
-Console.WriteLine("Admin: usuario=admin_principal, senha=Admin123!");
-Console.WriteLine("Funcionário: usuario=funcionario_teste, senha=Func123!");
+Console.WriteLine("  Admin: usuario=admin_principal, senha=Admin123!");
+Console.WriteLine("   Funcionário: usuario=funcionario_teste, senha=Func123!");
 Console.WriteLine("==============================================");
 Console.WriteLine("VERSÕES DISPONÍVEIS:");
 Console.WriteLine("   • v1 - API Estável (Produção)");
 Console.WriteLine("   • v2 - Nova Versão (Recursos Avançados)");
 Console.WriteLine("==============================================");
-Console.WriteLine("DICAS:");
+Console.WriteLine(" DICAS RÁPIDAS:");
 Console.WriteLine("   • Use /api/v1/... para versão estável");
 Console.WriteLine("   • Use /api/v2/... para novos recursos");
-Console.WriteLine("   • Obtenha token em: POST /api/v1/auth/login");
+Console.WriteLine("   • Obtenha token JWT em: POST /api/v1/auth/login");
+Console.WriteLine("   • Health Check mostra status em tempo real");
+Console.WriteLine("   • Swagger tem exemplos de todos os endpoints");
 Console.WriteLine("==============================================");
 
 await app.RunAsync();
