@@ -73,21 +73,23 @@ namespace MottuApi.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ExistsAsync(string nomePatio)
-        {
-            // ✅ ÚNICO SQL DIRETO - SÓ PARA EXISTS
-            try
-            {
-                var sql = "SELECT COUNT(*) FROM \"Patios\" WHERE \"NomePatio\" = :p0";
-                var count = await _context.Database.SqlQueryRaw<int>(sql, nomePatio).FirstOrDefaultAsync();
-                return count > 0;
-            }
-            catch
-            {
-                // Fallback seguro
-                return false;
-            }
-        }
+       public async Task<bool> ExistsAsync(string nomePatio)
+{
+    try
+    {
+        
+        var result = await _context.Patios
+            .Where(p => p.NomePatio == nomePatio)
+            .Select(p => 1)
+            .FirstOrDefaultAsync();
+        
+        return result == 1;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
         public async Task<int> GetTotalCountAsync()
         {

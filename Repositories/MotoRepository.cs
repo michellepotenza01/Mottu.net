@@ -114,19 +114,23 @@ namespace MottuApi.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ExistsAsync(string placa)
-        {
-            try
-            {
-                var sql = "SELECT COUNT(*) FROM \"Motos\" WHERE \"Placa\" = :p0";
-                var count = await _context.Database.SqlQueryRaw<int>(sql, placa).FirstOrDefaultAsync();
-                return count > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+       public async Task<bool> ExistsAsync(string placa)
+{
+    try
+    {
+        
+        var result = await _context.Motos
+            .Where(m => m.Placa == placa)
+            .Select(m => 1)
+            .FirstOrDefaultAsync();
+        
+        return result == 1;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
         public async Task<List<Moto>> GetByPatioAsync(string nomePatio)
         {

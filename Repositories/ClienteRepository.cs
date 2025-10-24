@@ -64,18 +64,21 @@ namespace MottuApi.Repositories
         }
 
         public async Task<bool> ExistsAsync(string usuarioCliente)
-        {
-            try
-            {
-                var sql = "SELECT COUNT(*) FROM \"Clientes\" WHERE \"UsuarioCliente\" = :p0";
-                var count = await _context.Database.SqlQueryRaw<int>(sql, usuarioCliente).FirstOrDefaultAsync();
-                return count > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+{
+    try
+    {
+        var result = await _context.Clientes
+            .Where(c => c.UsuarioCliente == usuarioCliente)
+            .Select(c => 1)
+            .FirstOrDefaultAsync();
+        
+        return result == 1;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
         public async Task<Cliente?> GetByMotoPlacaAsync(string motoPlaca)
         {

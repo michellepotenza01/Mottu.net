@@ -77,19 +77,22 @@ namespace MottuApi.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ExistsAsync(string usuarioFuncionario)
-        {
-            try
-            {
-                var sql = "SELECT COUNT(*) FROM \"Funcionarios\" WHERE \"UsuarioFuncionario\" = :p0";
-                var count = await _context.Database.SqlQueryRaw<int>(sql, usuarioFuncionario).FirstOrDefaultAsync();
-                return count > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+       public async Task<bool> ExistsAsync(string usuarioFuncionario)
+{
+    try
+    {
+        var result = await _context.Funcionarios
+            .Where(f => f.UsuarioFuncionario == usuarioFuncionario)
+            .Select(f => 1)
+            .FirstOrDefaultAsync();
+        
+        return result == 1;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
         public async Task<Funcionario?> GetByUsernameAsync(string usuario)
         {
